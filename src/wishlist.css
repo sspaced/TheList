@@ -420,9 +420,36 @@ body {
 /* Un média porte une ligne de plus que le produit : le titre du document. Sans
    lui, un passage sorti de son article n'a plus de nom — le domaine seul ne dit
    pas de QUOI il s'agit. */
-/* Une seule ligne, comme pour un produit : le domaine à gauche, le titre du
-   document à droite. C'est le titre qui cède quand la place manque — le domaine
-   est court et sert de repère. */
+/* Le titre d'un produit prend sa propre ligne, AU-DESSUS du domaine et du prix.
+   Sur une seule ligne il ne resterait qu'une quinzaine de caractères entre les
+   deux — assez pour tronquer « Carhartt WIP Kanan… », pas pour reconnaître
+   l'article. Deux classes, comme ailleurs : `.info` remet `align-items: baseline`
+   plus bas dans la feuille et casserait l'étirement de la colonne. */
+.info.info-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.ptitle {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.irow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Une seule ligne pour un passage : le domaine à gauche, le titre du document à
+   droite. C'est le titre qui cède quand la place manque — le domaine est court
+   et sert de repère. */
 .mtitle {
   font-weight: 700;
   min-width: 0;

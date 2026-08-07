@@ -139,17 +139,22 @@ function tile(item) {
   }
 
   const info = document.createElement('div');
-  info.className = 'info';
+  info.className = 'info info-stack';
 
-  const site = document.createElement('span');
-  site.className = 'site';
-  site.textContent = item.site || '';
+  const row = document.createElement('span');
+  row.className = 'irow';
+  row.append(
+    Object.assign(document.createElement('span'), { className: 'site', textContent: item.site || '' }),
+    Object.assign(document.createElement('span'), {
+      className: 'price' + (item.price == null ? ' none' : ''),
+      textContent: money(item),
+    }),
+  );
 
-  const price = document.createElement('span');
-  price.className = 'price' + (item.price == null ? ' none' : '');
-  price.textContent = money(item);
-
-  info.append(site, price);
+  if (item.title) {
+    info.append(Object.assign(document.createElement('span'), { className: 'ptitle', textContent: item.title }));
+  }
+  info.append(row);
   a.append(shot, info);
 
   const del = document.createElement('button');
