@@ -51,5 +51,6 @@
   "sectionProducts": "PRODUITS",
   "sectionMedia": "MÉDIAS",
   "removeMedia": "Retirer des médias",
-  "search": "RECHERCHER"
+  "search": "RECHERCHER",
+  "undoDelete": "Annuler la dernière suppression"
 }

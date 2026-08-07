@@ -392,6 +392,13 @@ body {
   border: 1px solid #000;
 }
 
+/* Le gris de fond n'est là que pour une image qui manque. Un passage occupe déjà
+   tout le cadre, mais son texte commence 29 px plus bas pour laisser passer la
+   croix — et cette bande de gris apparaissait au-dessus. */
+.shot-quote {
+  background: #fff;
+}
+
 .shot img {
   width: 100%;
   height: 100%;

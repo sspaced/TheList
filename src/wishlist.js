@@ -7,8 +7,8 @@
  * catégorisation et le stockage vivent dans le service worker et dans store.js,
  * cette page ne faisait que les piloter. Ce qui est utile revient au cas par cas.
  */
-import { allItems, migrateLegacyCategories, removeItem } from './store.js';
-import { allMedia, removeMedia } from './media.js';
+import { allItems, migrateLegacyCategories, putItem, removeItem } from './store.js';
+import { allMedia, putMedia, removeMedia } from './media.js';
 import { CATEGORIES } from './categorize.js';
 import { flip, isMuted, loadMute, setMuted, tick, tock } from './sound.js';
 import { initI18n, lang, LANGS, locale, setLang, t } from './i18n.js';
@@ -39,6 +39,19 @@ let filter = null;
 let section = 'products';
 /** Recherche libre, appliquée à la section courante. */
 let query = '';
+
+/**
+ * LA PILE D'ANNULATION.
+ *
+ * La croix supprime sans confirmation — c'est voulu, une boîte de dialogue à
+ * chaque retrait serait pire que le risque. Mais supprimer sans filet ne l'est
+ * pas : ⌘Z (⌃Z ailleurs) remet le dernier retiré, autant de fois qu'il le faut.
+ *
+ * En mémoire seulement, et c'est délibéré : l'annulation répare un geste qu'on
+ * vient de faire. Survivre à un rechargement en ferait une corbeille, ce qui est
+ * un autre objet — et il faudrait alors décider quand la vider.
+ */
+const undone = [];
 
 /**
  * LA RECHERCHE PORTE SUR TOUT CE QUI EST ENREGISTRÉ.
@@ -146,6 +159,7 @@ function tile(item) {
   del.title = t('removeItem');
   del.onclick = async () => {
     tock();
+    undone.push({ section: 'products', item });
     await removeItem(item.id);
     await refresh();
   };
@@ -171,7 +185,7 @@ function mediaTile(item) {
   a.title = item.title || '';
 
   const shot = document.createElement('div');
-  shot.className = 'shot';
+  shot.className = 'shot shot-quote';
   const q = document.createElement('div');
   q.className = 'quote';
   q.textContent = item.text;
@@ -193,6 +207,7 @@ function mediaTile(item) {
   del.title = t('removeMedia');
   del.onclick = async () => {
     tock();
+    undone.push({ section: 'media', item });
     await removeMedia(item.id);
     await refresh();
   };
@@ -289,6 +304,20 @@ async function renderKeys() {
     );
     return row;
   });
+
+  // Celui-ci n'est pas une commande Chrome mais un raccourci de la page : il ne
+  // remonte pas dans `getAll()`, on l'ajoute donc à la main. Le taire le rendrait
+  // introuvable.
+  const undo = document.createElement('div');
+  undo.className = 'keys-row';
+  undo.append(
+    Object.assign(document.createElement('span'), { textContent: t('undoDelete') }),
+    Object.assign(document.createElement('span'), {
+      className: 'keys-combo',
+      textContent: navigator.platform.startsWith('Mac') ? '⌘ Z' : '⌃ Z',
+    }),
+  );
+  rows.push(undo);
 
   // Un raccourci se change dans une page interne de Chrome, qu'un lien ordinaire
   // n'a pas le droit d'ouvrir — d'où le passage par `tabs.create`.
@@ -443,7 +472,23 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#lang')) closeLang();
   if (!e.target.closest('#section')) closeSection();
 });
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
+  // ⌘Z sur Mac, ⌃Z ailleurs. Ignoré pendant une saisie : dans le champ de
+  // recherche, ⌘Z doit rendre le texte effacé, pas ressusciter un article.
+  const typing = e.target instanceof HTMLInputElement || e.target?.isContentEditable;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !typing) {
+    const last = undone.pop();
+    if (!last) return;
+    e.preventDefault();
+    tick();
+    // On revient d'abord dans la section concernée : rendre un article sans le
+    // montrer laisserait croire qu'il ne s'est rien passé.
+    section = last.section;
+    if (last.section === 'media') await putMedia(last.item);
+    else await putItem(last.item);
+    await refresh();
+    return;
+  }
   if (e.key !== 'Escape') return;
   closeDropdown();
   closeKeys();

@@ -51,5 +51,6 @@
   "sectionProducts": "PRODUCTS",
   "sectionMedia": "MEDIA",
   "removeMedia": "Remove from media",
-  "search": "SEARCH"
+  "search": "SEARCH",
+  "undoDelete": "Undo last deletion"
 }

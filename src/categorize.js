@@ -71,28 +71,42 @@ const PROMPT_LABELS = Object.entries(LEGACY_LABELS).map(([label]) => label);
 
 const FALLBACK = 'other';
 
+/**
+ * LE LEXIQUE EST BILINGUE, ET IL DOIT L'ÊTRE.
+ *
+ * Il ne parlait que français. Sur une boutique anglophone, « Chase T-Shirt »
+ * tombait dans la mode — le mot figurait dans la liste — mais « Stripe Shirt » et
+ * « Down Jacket » finissaient dans « Autre » : deux articles du même site, du
+ * même rayon, rangés différemment. Un repli qui ne comprend qu'une langue ne
+ * rattrape rien sur la moitié du web.
+ *
+ * L'ordre compte : les règles étroites passent avant les larges, sinon
+ * « running shoe » serait rangé en sport et « laptop bag » en mode.
+ */
 const KEYWORDS = [
-  ['shoes', /chaussure|sneaker|basket|boot|botte|sandale|mocassin|escarpin|running shoe/i],
-  ['jewellery', /montre|watch|bijou|collier|bracelet|bague|boucle d.oreille|jewel/i],
-  ['beauty', /parfum|creme|crème|serum|sérum|maquillage|rouge à lèvres|shampoing|skincare|cosmeti/i],
-  ['fashion', /t-?shirt|chemise|pantalon|jean|robe|veste|manteau|pull|sweat|hoodie|jupe|short|sac à main|ceinture|lunettes de soleil/i],
-  ['computing', /laptop|macbook|ordinateur|pc portable|clavier|souris|ssd|disque dur|ram |écran \d|monitor|imprimante/i],
-  ['audio', /casque|écouteur|ecouteur|headphone|earbud|enceinte|speaker|ampli|platine|micro /i],
-  ['photo', /appareil photo|objectif|caméra|camera|gopro|trépied|drone/i],
-  ['electronics', /iphone|smartphone|téléphone|tablette|ipad|tv |télévision|console|playstation|xbox|nintendo|montre connectée/i],
-  ['kitchen', /poêle|casserole|couteau de cuisine|robot cuiseur|mixeur|cafetière|expresso|vaisselle|assiette|verre à/i],
-  ['furniture', /canapé|fauteuil|table |chaise|bureau |étagère|lit |matelas|commode|armoire/i],
-  ['home', /coussin|rideau|tapis|lampe|luminaire|linge de lit|couette|décoration|bougie|aspirateur/i],
-  ['games', /jeu de société|lego|puzzle|figurine|jouet|jeu vidéo|manette/i],
-  ['books', /livre|roman|bd |manga|essai|beau livre|guide /i],
-  ['sport', /haltère|yoga|fitness|vélo|velo|running|tapis de course|raquette|ballon|maillot/i],
-  ['outdoor', /tente|randonnée|sac à dos|camping|duvet|escalade|ski|snowboard/i],
-  ['kids', /bébé|bebe|poussette|biberon|couche|enfant|puériculture/i],
-  ['pets', /chien|chat |croquette|litière|aquarium|niche|laisse/i],
-  ['diy', /perceuse|visseuse|scie |outil|établi|peinture murale|quincaillerie/i],
-  ['auto', /pneu|voiture|moto|casque moto|autoradio|coffre de toit|huile moteur/i],
-  ['food', /café en grain|thé |chocolat|vin |whisky|bière|épice|huile d.olive/i],
-  ['health', /complément alimentaire|vitamine|tensiomètre|masseur|orthèse|pharmacie/i],
+  ['shoes', /chaussure|sneaker|basket|boot|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe/i],
+  ['jewellery', /montre|watch|bijou|jewel|collier|necklace|bracelet|bague|ring\b|boucle d.oreille|earring/i],
+  ['beauty', /parfum|perfume|fragrance|creme|crème|cream|serum|sérum|maquillage|makeup|rouge à lèvres|lipstick|shampoing|shampoo|skincare|cosmeti/i],
+  ['computing', /laptop|macbook|ordinateur|pc portable|clavier|keyboard|souris|mouse\b|ssd|disque dur|hard drive|ram |écran \d|monitor|imprimante|printer/i],
+  ['audio', /casque|écouteur|ecouteur|headphone|earbud|enceinte|speaker|ampli|turntable|platine|micro |microphone/i],
+  ['photo', /appareil photo|objectif|lens\b|caméra|camera|gopro|trépied|tripod|drone/i],
+  ['electronics', /iphone|smartphone|téléphone|phone\b|tablette|tablet|ipad|tv |télévision|television|console|playstation|xbox|nintendo|montre connectée|smartwatch/i],
+  ['kitchen', /poêle|casserole|pan\b|pot\b|couteau de cuisine|kitchen knife|robot cuiseur|mixeur|blender|cafetière|coffee maker|expresso|espresso|vaisselle|assiette|plate\b|verre à|mug\b/i],
+  ['furniture', /canapé|sofa|couch|fauteuil|armchair|table |desk\b|chaise|chair\b|bureau |étagère|shelf|shelving|lit |bed\b|matelas|mattress|commode|dresser|armoire|wardrobe/i],
+  ['home', /coussin|cushion|rideau|curtain|tapis|rug\b|lampe|lamp\b|luminaire|linge de lit|bedding|couette|duvet cover|décoration|candle|bougie|aspirateur|vacuum/i],
+  ['games', /jeu de société|board game|lego|puzzle|figurine|jouet|toy\b|jeu vidéo|video game|manette|controller/i],
+  ['books', /livre|book\b|roman|novel|bd |manga|essai|guide /i],
+  ['sport', /haltère|dumbbell|yoga|fitness|vélo|velo|bike\b|bicycle|running|tapis de course|treadmill|raquette|racket|ballon|maillot|jersey/i],
+  ['outdoor', /tente|tent\b|randonnée|hiking|sac à dos|backpack|camping|duvet|escalade|climbing|ski|snowboard/i],
+  ['kids', /bébé|bebe|baby|poussette|stroller|biberon|couche|nappy|diaper|enfant|kids?\b|puériculture/i],
+  ['pets', /chien|dog\b|chat |cat\b|croquette|litière|litter|aquarium|niche|laisse|leash/i],
+  ['diy', /perceuse|drill\b|visseuse|scie |saw\b|outil|tool\b|établi|workbench|peinture murale|quincaillerie|hardware/i],
+  ['auto', /pneu|tyre|tire\b|voiture|\bcar\b|moto|motorbike|casque moto|autoradio|coffre de toit|huile moteur/i],
+  ['food', /café en grain|coffee bean|thé |\btea\b|chocolat|chocolate|vin |wine\b|whisky|whiskey|bière|beer\b|épice|spice|huile d.olive|olive oil/i],
+  ['health', /complément alimentaire|supplement|vitamine|vitamin|tensiomètre|masseur|massage|orthèse|pharmacie|pharmacy/i],
+  // La mode en DERNIER : ses mots sont les plus génériques (« shirt », « bag »)
+  // et happeraient sinon « laptop bag » ou « running shoe ».
+  ['fashion', /t-?shirt|shirt\b|chemise|top\b|pantalon|trousers|pants\b|jean|robe|dress\b|veste|jacket|manteau|coat\b|parka|pull|sweater|knit|sweat|hoodie|jupe|skirt|short|sac\b|bag\b|ceinture|belt\b|lunettes de soleil|sunglasses|cap\b|beanie|scarf|écharpe|socks?|chaussettes?/i],
 ];
 
 export function guess(product) {
