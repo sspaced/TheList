@@ -170,6 +170,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg?.theList === 'picked') {
     addFromTab(sender.tab, true);
   }
+  // The toast is clickable, and it lives IN THE PAGE — a context that can open no
+  // tab of its own. A message is the only way back to the worker, which can.
+  if (msg?.theList === 'open') {
+    openWishlist();
+  }
   return false;
 });
 
@@ -273,12 +278,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'pick') pickOn(tab);
   if (info.menuItemId === 'quote') saveQuote(tab, info.selectionText);
   if (info.menuItemId === 'open') openWishlist();
-});
-
-// The toast is clickable, and it lives IN THE PAGE — a context that can open no
-// tab of its own. A message is the only way back to the worker, which can.
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === 'open-wishlist') openWishlist();
 });
 
 chrome.commands.onCommand.addListener(async (cmd, tab) => {

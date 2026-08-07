@@ -127,7 +127,7 @@ function paint({ title, kind }) {
     // closed before a response was received"). Neither is worth a page-console
     // error for a click that did what it was asked.
     try {
-      chrome.runtime.sendMessage({ type: 'open-wishlist' })?.catch(() => {});
+      chrome.runtime.sendMessage({ theList: 'open' })?.catch(() => {});
     } catch {}
     host.remove();
   };
