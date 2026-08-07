@@ -275,6 +275,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'open') openWishlist();
 });
 
+// The toast is clickable, and it lives IN THE PAGE — a context that can open no
+// tab of its own. A message is the only way back to the worker, which can.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === 'open-wishlist') openWishlist();
+});
+
 chrome.commands.onCommand.addListener(async (cmd, tab) => {
   if (cmd === 'open-wishlist') return openWishlist();
   if (cmd === 'pick-product') {

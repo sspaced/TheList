@@ -102,6 +102,36 @@ function paint({ title, kind }) {
 
   box.append(mark);
 
+  /**
+   * THE TOAST IS A DOOR: clicking it opens TheList.
+   *
+   * It is the natural continuation of a save — you have just put something in the
+   * list, and the only thing you might want next is to look at it. Until now that
+   * meant the keyboard shortcut or the context menu, from a page that had just
+   * told you the save worked.
+   *
+   * `pointer-events` stays off on the host so the toast never swallows a click
+   * meant for the page beneath it; it is turned back on for the box alone, which
+   * is exactly the clickable surface. The box keeps `role=status` rather than
+   * becoming a button: the announcement is the point, and a toast that inserts
+   * itself into the tab order for 2.4 s costs more than it gives — the list
+   * already has a shortcut and a menu entry for anyone on a keyboard.
+   */
+  box.style.cursor = 'pointer';
+  box.style.pointerEvents = 'auto';
+  box.onclick = () => {
+    // The injected function can import nothing, so it cannot open a tab itself:
+    // only the service worker can. Both failure modes are swallowed — the throw
+    // of an extension reloaded since the injection, and the rejection that
+    // follows a listener which opens the tab without answering ("the message port
+    // closed before a response was received"). Neither is worth a page-console
+    // error for a click that did what it was asked.
+    try {
+      chrome.runtime.sendMessage({ type: 'open-wishlist' })?.catch(() => {});
+    } catch {}
+    host.remove();
+  };
+
   root.append(box);
   document.documentElement.append(host);
 
@@ -139,12 +169,23 @@ function paint({ title, kind }) {
     });
   }
 
-  setTimeout(() => {
+  // 2.4 s is long enough to READ a verdict, not to aim at it: the box would slide
+  // away from under the cursor halfway through the click. Hovering therefore holds
+  // it, and leaving restarts the countdown from the top — the toast only leaves
+  // once you have stopped looking at it.
+  let timer;
+  const dismiss = () => {
     if (reduceMotion) return host.remove();
     box.style.opacity = '0';
     box.style.transform = 'translateY(-6px)';
     setTimeout(() => host.remove(), 160);
-  }, 2400);
+  };
+  const arm = () => {
+    timer = setTimeout(dismiss, 2400);
+  };
+  box.onmouseenter = () => clearTimeout(timer);
+  box.onmouseleave = arm;
+  arm();
 }
 
 /**
