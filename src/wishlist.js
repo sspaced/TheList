@@ -7,7 +7,7 @@
  * catégorisation et le stockage vivent dans le service worker et dans store.js,
  * cette page ne faisait que les piloter. Ce qui est utile revient au cas par cas.
  */
-import { allItems, migrateLegacyCategories, putItem, removeItem } from './store.js';
+import { allItems, migrateFromSync, migrateLegacyCategories, putItem, removeItem } from './store.js';
 import { allMedia, putMedia, removeMedia } from './media.js';
 import { CATEGORIES } from './categorize.js';
 import { flip, isMuted, loadMute, setMuted, tick, tock } from './sound.js';
@@ -74,7 +74,7 @@ const fold = (v) =>
 function haystack(o) {
   return o.kind === 'quote'
     ? fold([o.text, o.title, o.site].join(' '))
-    : fold([o.title, o.brand, o.site, o.category, t(`cat.${o.category}`), o.price, o.currency].join(' '));
+    : fold([o.title, o.brand, o.site, o.category, t(`cat.${o.category}`), o.desc, o.price, o.currency].join(' '));
 }
 
 /**
@@ -680,10 +680,11 @@ async function refresh() {
 // L'ajout se fait depuis le service worker : on suit le stockage pour que la
 // page se mette à jour toute seule si elle est déjà ouverte.
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync') refresh();
-  // Les médias sont dans `local` : sans cette écoute, un passage enregistré
-  // depuis une autre page n'apparaîtrait qu'au prochain rechargement.
-  if (area === 'local' && Object.keys(changes).some((k) => k.startsWith('m:'))) refresh();
+  if (area !== 'local') return;
+  // Produits (`i:`) et passages (`m:`) partagent maintenant `local`. On ignore
+  // tout le reste — la clé de langue, le réglage muet — sinon couper le son
+  // redessinerait la grille entière.
+  if (Object.keys(changes).some((k) => k.startsWith('i:') || k.startsWith('m:'))) refresh();
 });
 
 qInput.oninput = () => {
@@ -704,6 +705,8 @@ await initI18n();
 await loadMute();
 paintMute();
 renderLang();
-// Une seule fois utile, mais idempotente : elle n'écrit que ce qui change.
+// Deux migrations, idempotentes toutes les deux : l'ordre compte, il faut avoir
+// rapatrié les articles depuis `sync` avant de vouloir corriger leurs catégories.
+await migrateFromSync();
 await migrateLegacyCategories();
 await refresh();

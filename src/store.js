@@ -1,10 +1,24 @@
-// Storage is entirely local. Items go into chrome.storage.sync (synced between
-// your Chrome installs, ~100 KB / 512 keys max) — one key per item, no central
-// index to rewrite. The OpenRouter API key stays in storage.local: never synced.
+// Storage is entirely local, in every sense: nothing leaves the machine, and
+// everything now lives in `chrome.storage.local`.
+//
+// Items used to sit in `chrome.storage.sync` to follow you between Chrome
+// installs. That convenience cost more than it was worth: sync caps at 100 KB in
+// TOTAL, 8 KB per key, 512 keys. That ceiling is what truncated image URLs into
+// dead links and what forced us to throw away product descriptions after using
+// them to classify. `local` gives ~10 MB, and `unlimitedStorage` removes the cap
+// altogether.
+//
+// What we give up, plainly: the list no longer syncs between several Chrome
+// installs. What we gain: descriptions are kept, so they can be searched, and
+// media and products finally share one store.
+//
+// One key per item, no central index to rewrite.
 
 const PREFIX = 'i:';
 
-export const SYNC_QUOTA = 102400; // chrome.storage.sync.QUOTA_BYTES
+/** Chrome's default local quota. Lifted by the `unlimitedStorage`
+ *  permission, and kept here only to display how much is in use. */
+export const LOCAL_QUOTA = 10485760;
 
 export const DEFAULT_SETTINGS = {
   apiKey: '',
@@ -50,12 +64,15 @@ export function makeItem(product, category, now) {
     site: cut(product.site, 60),
     brand: cut(product.brand, 60),
     category: cut(category, 40),
+    // Kept now that the quota allows it. It was extracted, used to classify, then
+    // dropped — so a product could not be found by searching its description.
+    desc: cut(product.desc, 400),
     ts: now,
   };
 }
 
 export async function allItems() {
-  const all = await chrome.storage.sync.get(null);
+  const all = await chrome.storage.local.get(null);
   return Object.entries(all)
     .filter(([k]) => k.startsWith(PREFIX))
     .map(([, v]) => v)
@@ -65,12 +82,12 @@ export async function allItems() {
 
 export async function getItem(id) {
   const k = PREFIX + id;
-  const r = await chrome.storage.sync.get(k);
+  const r = await chrome.storage.local.get(k);
   return r[k] || null;
 }
 
 export async function putItem(item) {
-  await chrome.storage.sync.set({ [PREFIX + item.id]: item });
+  await chrome.storage.local.set({ [PREFIX + item.id]: item });
 }
 
 /**
@@ -97,13 +114,35 @@ export async function migrateLegacyCategories() {
   return n;
 }
 
+/**
+ * Moves items out of `storage.sync` and into `storage.local`.
+ *
+ * The order is the whole point: we WRITE to local before clearing sync. A crash
+ * in between leaves duplicates under identical keys, which the next run
+ * overwrites harmlessly — whereas clearing first could lose a list outright.
+ *
+ * Idempotent: once sync is empty it does nothing.
+ */
+export async function migrateFromSync() {
+  try {
+    const all = await chrome.storage.sync.get(null);
+    const keys = Object.keys(all).filter((k) => k.startsWith(PREFIX));
+    if (!keys.length) return 0;
+    await chrome.storage.local.set(Object.fromEntries(keys.map((k) => [k, all[k]])));
+    await chrome.storage.sync.remove(keys);
+    return keys.length;
+  } catch {
+    return 0;
+  }
+}
+
 export async function removeItem(id) {
-  await chrome.storage.sync.remove(PREFIX + id);
+  await chrome.storage.local.remove(PREFIX + id);
 }
 
 export async function usage() {
-  const [bytes, items] = await Promise.all([chrome.storage.sync.getBytesInUse(null), allItems()]);
-  return { bytes, quota: SYNC_QUOTA, count: items.length };
+  const [bytes, items] = await Promise.all([chrome.storage.local.getBytesInUse(null), allItems()]);
+  return { bytes, quota: LOCAL_QUOTA, count: items.length };
 }
 
 export async function getSettings() {

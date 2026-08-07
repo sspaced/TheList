@@ -39,10 +39,15 @@ that does not help you find an object again has no place on screen.
 
 ## What is stored, and where
 
-| | Location | Synced | Why |
-|---|---|---|---|
-| Products | `storage.sync` | yes | Small: URL, title, price, image URL. |
-| Passages | `storage.local` | no | `sync` caps at 100 KB in total; one long text would blow it. |
+Everything lives in `chrome.storage.local` — products and passages alike.
+
+Products used to sit in `storage.sync` so the list would follow you between
+Chrome installs. That convenience cost more than it was worth: sync caps at
+100 KB in total and 8 KB per key, and that ceiling is what truncated image URLs
+into dead links and forced descriptions to be thrown away right after being used
+to classify. What we give up is stated plainly: **the list no longer syncs between
+several Chrome installs**. What we gain is room — descriptions are kept and
+searchable, and both kinds share one store.
 
 Nothing is sent anywhere, with one exception: when an OpenRouter key is
 configured, the product's title and brand go to the model to be classified.
