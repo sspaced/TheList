@@ -244,13 +244,14 @@ function tile(item) {
     shot.append(img);
   }
 
-  // Tout sur une ligne : le titre court d'abord, le domaine ensuite — c'est lui
-  // qui cède la place quand elle manque — et le prix calé à droite.
+  // Tout sur une ligne : le domaine à gauche, le titre au milieu, le prix à
+  // droite. Les deux extrémités sont courtes et fixes, le titre occupe ce qui
+  // reste — c'est donc lui qui cède quand la place manque.
   const info = document.createElement('div');
   info.className = 'info';
   info.append(
-    withText('ptitle', shortTitle(item.title)),
     withText('site', item.site || ''),
+    withText('ptitle', shortTitle(item.title)),
     Object.assign(document.createElement('span'), {
       className: 'price' + (item.price == null ? ' none' : ''),
       textContent: money(item),
@@ -301,7 +302,10 @@ function mediaTile(item) {
   info.className = 'info';
   info.append(
     withText('site', item.site || ''),
-    withText('mtitle', shortTitle(item.title)),
+    // Pas de raccourcissement ici : sans prix à loger, la ligne d'un passage a
+    // la place de porter le titre entier — et le titre d'un article est ce qui
+    // permet de le reconnaître, bien plus que ses deux premiers mots.
+    withText('mtitle', item.title || ''),
   );
 
   a.append(shot, info);

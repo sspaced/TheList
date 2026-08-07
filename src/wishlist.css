@@ -420,28 +420,30 @@ body {
 /* Un média porte une ligne de plus que le produit : le titre du document. Sans
    lui, un passage sorti de son article n'a plus de nom — le domaine seul ne dit
    pas de QUOI il s'agit. */
-/* Titre, domaine et prix sur UNE ligne. Le titre est déjà court (deux mots
-   plafonnés côté JavaScript), il garde donc sa largeur ; c'est le domaine qui
-   se tronque quand la place manque, et le prix reste calé à droite. */
+/* Domaine, titre et prix sur UNE ligne, dans cet ordre. Le titre occupe le
+   milieu et prend l'espace restant : c'est lui qui se tronque, le domaine et le
+   prix étant courts et déjà tenus par leur propre troncature. */
 .ptitle {
   font-weight: 700;
-  flex: none;
-  max-width: 55%;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Une seule ligne pour un passage : le domaine à gauche, le titre du document à
-   droite. C'est le titre qui cède quand la place manque — le domaine est court
-   et sert de repère. */
+/* Un passage : domaine à gauche, titre au milieu — même disposition qu'un
+   produit, à ceci près qu'il n'y a pas de prix à droite. Le titre prend tout ce
+   qui reste, et c'est lui qui se tronque. */
 .mtitle {
   font-weight: 700;
+  flex: 1 1 auto;
   min-width: 0;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: right;
 }
 
 .info {
@@ -456,9 +458,10 @@ body {
   padding: 8px;
 }
 
-/* Le nom de domaine peut être long (« boutique.machin-truc.co.uk ») : c'est lui
-   qui cède, jamais le prix — on vient là pour le montant. */
+/* Le nom de domaine peut être long (« boutique.machin-truc.co.uk ») : il peut
+   se rétrécir, mais après le titre — il sert de repère et se lit en premier. */
 .site {
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
