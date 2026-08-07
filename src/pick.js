@@ -48,7 +48,9 @@
 
   const hasImage = (el) => {
     for (const img of el.querySelectorAll('img')) {
-      const src = img.currentSrc || img.src || '';
+      // `srcset` counts: a lazily-loaded card carries a `data:` placeholder in
+      // `src` and its real variants in `srcset`, and skipping it outlined nothing.
+      const src = img.currentSrc || img.getAttribute('srcset') || img.src || '';
       if (!src || src.startsWith('data:') || /\.svg(?:[?#]|$)/i.test(src)) continue;
       const r = img.getBoundingClientRect();
       if (r.width * r.height >= MIN_AREA) return true;

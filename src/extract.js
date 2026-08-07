@@ -50,6 +50,80 @@
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
+  /**
+   * THE WIDEST VARIANT THE PAGE DECLARES — not the one the browser loaded.
+   *
+   * `currentSrc` is the browser's answer to a different question: "what fits this
+   * 241 px slot on this screen?" Our tile shows the image at more than twice that,
+   * so a listing thumbnail blown up is a soft, blurry tile. Measured on END's
+   * grid: the slot is 241 px, the browser loaded `w_768`, and the `srcset` sitting
+   * right there in the markup goes up to `w_1600`.
+   *
+   * `<picture><source>` counts too, and a `data:` placeholder in `src` no longer
+   * disqualifies an image whose real variants live in `srcset` — that lazy-loading
+   * pattern used to make us skip the packshot entirely.
+   *
+   * Descriptors: `w` compares numerically. `x` is scaled so it can be compared at
+   * all; the spec forbids mixing the two inside ONE list, so ordering within a
+   * list is exact and only the comparison ACROSS lists is a guess.
+   */
+  /**
+   * A `srcset` is NOT a comma-separated list, and splitting it on commas is how
+   * `f_auto,q_auto:good,w_1600/photo.jpg` became `w_1600/photo.jpg` — a relative
+   * path resolved against the shop's own URL, i.e. a dead link. Cloudinary and
+   * friends put commas inside their URLs all day long.
+   *
+   * So this follows the spec's own shape: a candidate's URL is a run of
+   * non-whitespace characters, and only a comma at its END belongs to the
+   * separator. `a.jpg 1x,b.jpg 2x` parses too, comma without a space and all.
+   */
+  const parseSrcset = (val) => {
+    const out = [];
+    const str = String(val || '');
+    let i = 0;
+    while (i < str.length) {
+      while (i < str.length && /[\s,]/.test(str[i])) i++;
+      let url = '';
+      while (i < str.length && !/\s/.test(str[i])) url += str[i++];
+      if (!url) break;
+      let d = '';
+      if (/,$/.test(url)) {
+        url = url.replace(/,+$/, '');
+      } else {
+        while (i < str.length && /\s/.test(str[i])) i++;
+        while (i < str.length && str[i] !== ',') d += str[i++];
+      }
+      out.push({ url, d: d.trim() });
+    }
+    return out;
+  };
+
+  /**
+   * Descriptors: `w` compares numerically. `x` is scaled so it can be compared at
+   * all; the spec forbids mixing the two inside ONE list, so ordering within a
+   * list is exact and only the comparison ACROSS lists is a guess.
+   */
+  const widestIn = (val) => {
+    let best = { url: '', width: 0 };
+    for (const { url, d } of parseSrcset(val)) {
+      const n = parseFloat(d) || 1;
+      const width = /x$/i.test(d) ? n * 1000 : n;
+      if (width >= best.width) best = { url, width };
+    }
+    return best;
+  };
+
+  function bestSrc(img) {
+    let best = { url: '', width: 0 };
+    const pic = img.closest ? img.closest('picture') : null;
+    const lists = [...(pic ? [...pic.querySelectorAll('source')].map((x) => x.getAttribute('srcset')) : []), img.getAttribute('srcset')];
+    for (const l of lists) {
+      const c = widestIn(l);
+      if (c.url && c.width > best.width) best = c;
+    }
+    return abs(best.url) || abs(img.currentSrc || img.src);
+  }
+
   const CUR = { '€': 'EUR', $: 'USD', '£': 'GBP', '¥': 'JPY', 'CHF': 'CHF', 'chf': 'CHF' };
   const sniffCurrency = (raw) => {
     const s = String(raw || '');
@@ -306,7 +380,7 @@
       // DOCUMENT coordinates, not viewport: the user may have scrolled before
       // pressing the shortcut, and the top of the page is still the top of the page.
       if (r.top + window.scrollY > maxTop) continue;
-      const src = img.currentSrc || img.src;
+      const src = bestSrc(img);
       if (!src || src.startsWith('data:')) continue;
       // An SVG is a pictogram — a rating star, a badge, a logo — and it declares
       // arbitrary dimensions, hence a huge area. No shop photographs a product in
@@ -315,7 +389,7 @@
       best = src;
       bestArea = area;
     }
-    return abs(best);
+    return best;
   }
 
   /**
@@ -423,7 +497,7 @@
       if (inChrome(img)) continue;
       const r = img.getBoundingClientRect();
       if (!r.width || !r.height) continue;
-      const src = img.currentSrc || img.src;
+      const src = bestSrc(img);
       if (!src || src.startsWith('data:')) continue;
       // An SVG is a pictogram (star, badge, logo) and declares arbitrary
       // dimensions. No shop photographs in SVG.
@@ -433,7 +507,7 @@
       best = src;
       bestArea = area;
     }
-    return abs(best);
+    return best;
   }
 
   /**
