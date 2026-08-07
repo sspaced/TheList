@@ -36,6 +36,11 @@ that does not help you find an object again has no place on screen.
 | `⌥P` | **Pick** one product: the block under the pointer is outlined, a click saves it. For search pages and category grids. Esc or right-click leaves. |
 | `⌥L` | Opens the list. |
 
+- **PDFs**: the shortcut cannot see a selection there, and now says so instead of
+  claiming there is none. Chrome's viewer draws through PDFium, whose selection
+  belongs to the plugin and to no DOM an extension may read — the main document
+  is empty. The right-click menu works, because Chrome hands it the selected text
+  itself; the title and address then come from the tab.
 - **Two sections**: products, and media (saved passages).
 - **Category filter** and **total in euros** of whatever is displayed.
 - **Categorisation** by a model through OpenRouter when a key is configured,

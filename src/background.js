@@ -59,8 +59,13 @@ async function addFromTab(tab, fromPick = false) {
     // We keep the read: `saveQuote` needs it for the title and the URL, and doing
     // it again would mean a second injection into the page for nothing.
     const page = await readSelection(tabId);
-    const selected = page?.text?.trim();
+    const selected = page.text?.trim();
     if (selected) return saveQuote(tab, selected, page);
+    // Reading was refused, so extracting will be too, and the toast that would
+    // announce the failure cannot be injected either. Stop here and say so.
+    if (!page.ok) return unreachable(tabId);
+    // A PDF carries no product either. The useful gesture here is the quote.
+    if (page.pdf) return pdfHint(tabId);
   }
 
   let product = null;
@@ -189,6 +194,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
  * The title and URL come from the page in both cases: without them a
  * three-sentence excerpt has no provenance, and a quote without a source is
  * worth very little.
+ *
+ * `ok` separates "read the page, nothing was selected" from "not allowed to read
+ * the page at all" — they used to be the same `null`.
+ *
+ * `pdf` covers a third case, and it is the one that lied. Highlight three
+ * sentences in a PDF, press the shortcut, and the toast answered "No text
+ * selected" while they were plainly selected on screen.
  */
 async function readSelection(tabId) {
   try {
@@ -196,6 +208,13 @@ async function readSelection(tabId) {
       target: { tabId },
       func: () => ({
         text: String(getSelection() ?? ''),
+        // `contentType` is the whole tell, measured on Chrome's viewer: the main
+        // document reports `application/pdf`, has no body children and no title,
+        // and everything visible is drawn by PDFium — whose selection belongs to
+        // the plugin and to no DOM at all. Injection SUCCEEDS here (the toast does
+        // appear), it just lands in an empty document, which is why the failure
+        // looked like an empty selection.
+        pdf: document.contentType === 'application/pdf',
         title: document.title,
         url:
           document.querySelector('link[rel="canonical"]')?.href ||
@@ -204,10 +223,58 @@ async function readSelection(tabId) {
         site: location.hostname.replace(/^www\./, ''),
       }),
     });
-    return res?.result ?? null;
+    return { ok: true, ...(res?.result ?? {}) };
   } catch {
-    return null;
+    return { ok: false };
   }
+}
+
+/**
+ * WHATEVER THE DOCUMENT COULD NOT SAY, THE TAB CAN.
+ *
+ * A PDF's document is empty — no title, nothing — so a quote saved from one would
+ * have had no provenance, and a quote without a source is worth very little.
+ * `tab.title` is the title Chrome read from the PDF's own metadata ("Zero to One:
+ * Notes on Startups…") and `tab.url` its address. Both are ours to read: the
+ * gesture that triggered this granted `activeTab`.
+ */
+function withTab(page, tab) {
+  const url = page.url || tab?.url || '';
+  let site = page.site || '';
+  if (!site) {
+    try {
+      site = new URL(url).hostname.replace(/^www\./, '');
+    } catch {}
+  }
+  return { ...page, title: page.title || tab?.title || '', url, site };
+}
+
+/**
+ * The one honest thing to say on a PDF: the text is selected, we cannot see it,
+ * and the gesture that CAN see it is the right-click — Chrome hands the menu the
+ * selected text itself, which is how "Search Google for…" works there.
+ *
+ * A toast, not just a badge: injection works on a PDF, it simply lands in an empty
+ * document.
+ */
+function pdfHint(tabId) {
+  toast(tabId, { title: t('pdfUseMenu'), kind: 'warn' });
+  return badge(tabId, 'PDF', '#cc0000');
+}
+
+/**
+ * A page we are not allowed to read, said out loud.
+ *
+ * No toast: injecting the toast is the very thing that was just refused. The
+ * badge is the only channel left, so the hover title carries the sentence — and
+ * the context menu, which does work here, is one right-click away.
+ */
+async function unreachable(tabId) {
+  await ready();
+  try {
+    await chrome.action.setTitle({ tabId, title: t('cannotRead') });
+  } catch {}
+  return badge(tabId, '×', '#cc0000');
 }
 
 async function saveQuote(tab, selectionText, known) {
@@ -215,24 +282,30 @@ async function saveQuote(tab, selectionText, known) {
   if (!tabId) return;
   await ready();
 
-  const page = known ?? (await readSelection(tabId));
+  let page = known ?? (await readSelection(tabId));
   // The context menu's text wins: Chrome hands it over exactly as the user
   // highlighted it, whereas re-reading the selection from the page can happen
   // after a click has already cleared it.
-  const text = (selectionText || page?.text || '').trim();
+  const text = (selectionText || page.text || '').trim();
   if (!text) {
+    // Nothing selected is one thing; being unable to look is another, and saying
+    // the first when it is the second sends you hunting for a bug in your own
+    // gesture.
+    if (!page.ok) return unreachable(tabId);
+    if (page.pdf) return pdfHint(tabId);
     toast(tabId, { title: t('toastNoSelection'), kind: 'warn' });
     return badge(tabId, '?', '#cc0000');
   }
+  page = withTab(page, tab);
 
   try {
     await putMedia(
       makeQuote(
         {
           text,
-          title: page?.title ?? '',
-          url: page?.url ?? tab.url ?? '',
-          site: page?.site ?? '',
+          title: page.title ?? '',
+          url: page.url || tab.url || '',
+          site: page.site ?? '',
         },
         Date.now(),
       ),

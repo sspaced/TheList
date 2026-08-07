@@ -55,5 +55,7 @@
   "search": "RECHERCHER",
   "undoDelete": "Annuler la dernière suppression",
   "pickHint": "Clique un produit · Échap pour annuler",
-  "menuPick": "Choisir un produit…"
+  "menuPick": "Choisir un produit…",
+  "cannotRead": "Page interne à Chrome : illisible par une extension",
+  "pdfUseMenu": "PDF : sélectionne, puis clic droit"
 }
