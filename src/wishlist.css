@@ -420,31 +420,16 @@ body {
 /* Un média porte une ligne de plus que le produit : le titre du document. Sans
    lui, un passage sorti de son article n'a plus de nom — le domaine seul ne dit
    pas de QUOI il s'agit. */
-/* Le titre d'un produit prend sa propre ligne, AU-DESSUS du domaine et du prix.
-   Sur une seule ligne il ne resterait qu'une quinzaine de caractères entre les
-   deux — assez pour tronquer « Carhartt WIP Kanan… », pas pour reconnaître
-   l'article. Deux classes, comme ailleurs : `.info` remet `align-items: baseline`
-   plus bas dans la feuille et casserait l'étirement de la colonne. */
-.info.info-stack {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 5px;
-}
-
+/* Titre, domaine et prix sur UNE ligne. Le titre est déjà court (deux mots
+   plafonnés côté JavaScript), il garde donc sa largeur ; c'est le domaine qui
+   se tronque quand la place manque, et le prix reste calé à droite. */
 .ptitle {
   font-weight: 700;
-  min-width: 0;
+  flex: none;
+  max-width: 55%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.irow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
 }
 
 /* Une seule ligne pour un passage : le domaine à gauche, le titre du document à
@@ -488,4 +473,35 @@ body {
    manque, la boîte reste (la grille ne doit pas se désaligner) et le dit. */
 .price.none {
   color: #999;
+}
+
+/* ---------- Surlignage de la recherche ----------
+   Un arc-en-ciel POUSSIÉREUX : les teintes sont désaturées — du pastel, pas des
+   couleurs primaires — et un grain les recouvre. Le grain est un vrai bruit
+   (`feTurbulence` en SVG, encodé dans la feuille, aucun fichier), désaturé puis
+   mélangé en `multiply` : il assombrit par touches, comme le grain d'un
+   argentique, au lieu de poser un voile uniforme.
+
+   Sur une page qui n'a que du noir et du blanc, c'est la seule couleur — donc
+   elle doit rester basse. Le texte, lui, ne change pas de couleur : il reste
+   noir et parfaitement lisible par-dessus. */
+mark {
+  color: inherit;
+  padding: 0 1px;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.5'/%3E%3C/svg%3E"),
+    linear-gradient(
+      100deg,
+      rgba(214, 138, 138, 0.55),
+      rgba(226, 182, 122, 0.55),
+      rgba(206, 208, 130, 0.55),
+      rgba(138, 196, 168, 0.55),
+      rgba(140, 174, 214, 0.55),
+      rgba(176, 148, 200, 0.55)
+    );
+  background-blend-mode: multiply;
+  /* Une marque qui court sur deux lignes garde son fond et ses marges sur
+     chacune, au lieu d'un rectangle unique qui traverserait le vide. */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }

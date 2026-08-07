@@ -77,6 +77,75 @@ function haystack(o) {
     : fold([o.title, o.brand, o.site, o.category, t(`cat.${o.category}`), o.price, o.currency].join(' '));
 }
 
+/**
+ * Le texte, avec les occurrences de la recherche entourées de `<mark>`.
+ *
+ * On ne construit JAMAIS ce fragment par `innerHTML` : le texte vient de pages
+ * tierces, et y injecter du balisage rendrait la page vulnérable à ce qu'un
+ * marchand aurait écrit dans son titre.
+ *
+ * La difficulté est ailleurs : la recherche est insensible aux accents, donc
+ * « energie » doit surligner « énergie ». Comparer des chaînes normalisées ne
+ * suffit pas — la normalisation change les longueurs, et les positions ne
+ * correspondent plus. On construit donc une table qui relie chaque caractère
+ * normalisé à son index d'origine.
+ */
+function foldIndexed(s) {
+  let out = '';
+  const map = [];
+  for (let i = 0; i < s.length; i++) {
+    const f = s[i]
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    for (const c of f) {
+      out += c;
+      map.push(i);
+    }
+  }
+  map.push(s.length); // borne finale, pour l'index de fin d'un mot en queue
+  return { out, map };
+}
+
+function marked(text) {
+  const frag = document.createDocumentFragment();
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!text || !words.length) {
+    frag.append(document.createTextNode(text ?? ''));
+    return frag;
+  }
+
+  const { out, map } = foldIndexed(text);
+  // Toutes les plages à surligner, fusionnées : deux mots qui se chevauchent ne
+  // doivent pas produire deux marques imbriquées.
+  const spans = [];
+  for (const w of words) {
+    let at = out.indexOf(w);
+    while (at !== -1) {
+      spans.push([map[at], map[at + w.length]]);
+      at = out.indexOf(w, at + w.length);
+    }
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [a, b] of spans) {
+    const last = merged[merged.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  }
+
+  let cursor = 0;
+  for (const [a, b] of merged) {
+    if (a > cursor) frag.append(document.createTextNode(text.slice(cursor, a)));
+    const m = document.createElement('mark');
+    m.textContent = text.slice(a, b);
+    frag.append(m);
+    cursor = b;
+  }
+  if (cursor < text.length) frag.append(document.createTextNode(text.slice(cursor)));
+  return frag;
+}
+
 function matches(o) {
   if (!query) return true;
   const hay = haystack(o);
@@ -87,6 +156,43 @@ function matches(o) {
     .split(/\s+/)
     .filter(Boolean)
     .every((w) => hay.includes(w));
+}
+
+/**
+ * Le titre affiché sur une tuile : DEUX MOTS, plafonnés.
+ *
+ * Les marchands écrivent des phrases entières — « Mellow Clo Everyday Stretch
+ * Nylon TrousersBlack » — et sur une ligne partagée avec le domaine et le prix
+ * il n'y a de place pour rien d'autre. Les deux premiers mots suffisent à
+ * reconnaître un article qu'on a soi-même enregistré ; le titre complet reste
+ * dans l'infobulle du lien.
+ *
+ * Le plafond de caractères est une seconde barrière : deux mots peuvent être
+ * très longs. Les points de suspension ne s'affichent que si l'on a coupé — les
+ * mettre systématiquement laisserait croire à un texte tronqué qui ne l'est pas.
+ */
+const TITLE_WORDS = 2;
+const TITLE_CHARS = 22;
+
+function shortTitle(s) {
+  const full = (s ?? '').trim();
+  if (!full) return '';
+  const words = full.split(/\s+/);
+  let out = words.slice(0, TITLE_WORDS).join(' ');
+  let cut = words.length > TITLE_WORDS;
+  if (out.length > TITLE_CHARS) {
+    out = out.slice(0, TITLE_CHARS).trimEnd();
+    cut = true;
+  }
+  return cut ? `${out}…` : out;
+}
+
+/** Un span de classe donnée, dont le texte porte les marques de recherche. */
+function withText(cls, text) {
+  const el = document.createElement('span');
+  el.className = cls;
+  el.append(marked(text));
+  return el;
 }
 
 function money(item) {
@@ -138,23 +244,18 @@ function tile(item) {
     shot.append(img);
   }
 
+  // Tout sur une ligne : le titre court d'abord, le domaine ensuite — c'est lui
+  // qui cède la place quand elle manque — et le prix calé à droite.
   const info = document.createElement('div');
-  info.className = 'info info-stack';
-
-  const row = document.createElement('span');
-  row.className = 'irow';
-  row.append(
-    Object.assign(document.createElement('span'), { className: 'site', textContent: item.site || '' }),
+  info.className = 'info';
+  info.append(
+    withText('ptitle', shortTitle(item.title)),
+    withText('site', item.site || ''),
     Object.assign(document.createElement('span'), {
       className: 'price' + (item.price == null ? ' none' : ''),
       textContent: money(item),
     }),
   );
-
-  if (item.title) {
-    info.append(Object.assign(document.createElement('span'), { className: 'ptitle', textContent: item.title }));
-  }
-  info.append(row);
   a.append(shot, info);
 
   const del = document.createElement('button');
@@ -193,14 +294,14 @@ function mediaTile(item) {
   shot.className = 'shot shot-quote';
   const q = document.createElement('div');
   q.className = 'quote';
-  q.textContent = item.text;
+  q.append(marked(item.text));
   shot.append(q);
 
   const info = document.createElement('div');
   info.className = 'info';
   info.append(
-    Object.assign(document.createElement('span'), { className: 'site', textContent: item.site || '' }),
-    Object.assign(document.createElement('span'), { className: 'mtitle', textContent: item.title || '' }),
+    withText('site', item.site || ''),
+    withText('mtitle', shortTitle(item.title)),
   );
 
   a.append(shot, info);
