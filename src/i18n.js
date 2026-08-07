@@ -1,24 +1,24 @@
 /**
- * Les textes, via i18next (MIT, vendoré dans `vendor/i18next/`).
+ * Copy, through i18next (MIT, vendored under `vendor/i18next/`).
  *
- * Pourquoi une lib pour une douzaine de chaînes : ce n'est pas la traduction qui
- * coûte, c'est la MÉCANIQUE — interpolation, pluriels, repli quand une clé manque
- * dans une langue, et surtout un fichier JSON par langue. Ajouter une langue
- * devient « déposer `es.json` et l'ajouter à LANGS », sans toucher au code. Un
- * JSON est aussi ce qu'un traducteur remplit sans rien casser.
+ * Why a library for a dozen strings: the translating is not what costs, the
+ * MACHINERY is — interpolation, plurals, falling back when a key is missing in
+ * one language, and above all one JSON file per language. Adding a language
+ * becomes "drop `es.json` in and add it to LANGS", with no code to touch. A JSON
+ * file is also what a translator can fill in without breaking anything.
  *
- * Pourquoi PAS `chrome.i18n`, le système natif : il suit la langue de l'interface
- * de Chrome et ne peut pas être changé depuis l'extension. Impossible d'offrir un
- * sélecteur, et impossible de relire l'anglais sans basculer tout son navigateur.
- * (Il reste le seul moyen de traduire le `manifest.json` — non fait, assumé.)
+ * Why NOT `chrome.i18n`, the native system: it follows Chrome's own interface
+ * language and cannot be changed from the extension. No picker is possible, and
+ * there is no way to proof-read the English without switching the whole browser.
+ * (It remains the only way to translate `manifest.json` — not done, deliberately.)
  *
- * Les fichiers sont chargés par `fetch` sur `chrome.runtime.getURL` : une page
- * d'extension a le droit de lire ses propres ressources, et on garde ainsi de
- * vrais `.json` plutôt que des objets JS déguisés.
+ * The files are loaded with `fetch` over `chrome.runtime.getURL`: an extension
+ * page is allowed to read its own resources, which keeps them real `.json` files
+ * rather than JS objects in disguise.
  */
 import i18next from './vendor/i18next/i18next.js';
 
-/** Ajouter une langue : déposer le JSON, ajouter la ligne ici. Rien d'autre. */
+/** Adding a language: drop the JSON in, add the line here. Nothing else. */
 export const LANGS = [
   { code: 'fr', label: 'Français', locale: 'fr-FR' },
   { code: 'en', label: 'English', locale: 'en-GB' },
@@ -38,7 +38,7 @@ async function load(code) {
   return res.json();
 }
 
-/** Langue retenue au dernier passage, sinon celle du navigateur, sinon le repli. */
+/** Language kept from last time, else the browser's, else the fallback. */
 async function preferred() {
   try {
     const { lang } = await chrome.storage.local.get({ lang: '' });
@@ -50,8 +50,8 @@ async function preferred() {
 
 export async function initI18n() {
   current = await preferred();
-  // Les deux langues sont chargées d'entrée : elles pèsent moins de 2 Ko et ça
-  // rend le changement instantané, sans état de chargement à gérer à l'écran.
+  // Both languages are loaded up front: they weigh under 2 KB and it makes
+  // switching instant, with no loading state to handle on screen.
   const bundles = await Promise.all(
     LANGS.map(async (l) => [l.code, await load(l.code).catch(() => ({}))]),
   );
@@ -72,8 +72,8 @@ export function lang() {
   return current;
 }
 
-/** Locale complète (`fr-FR`) — c'est elle qui formate les montants. Sans ça,
- *  l'interface passait en anglais mais les prix restaient au format français. */
+/** Full locale (`fr-FR`) — it is what formats amounts. Without it the interface
+ *  switched to English while prices stayed in the French format. */
 export function locale() {
   return LANGS.find((l) => l.code === current)?.locale ?? 'fr-FR';
 }

@@ -1,26 +1,25 @@
 /**
- * Les sons d'interface — délégués à Cuelume (MIT, vendoré dans
+ * Interface sounds — delegated to Cuelume (MIT, vendored under
  * `vendor/cuelume/`).
  *
- * Mes deux clics maison sonnaient cheap, et pas parce que le code était mauvais :
- * un son d'interface réussi est un objet DESIGNÉ, calibré à l'oreille. Or je ne
- * peux pas écouter ce que j'écris. Cuelume apporte dix-sept recettes réglées par
- * quelqu'un qui, lui, a entendu le résultat.
+ * My two hand-rolled clicks sounded cheap, and not because the code was bad: a
+ * good interface sound is a DESIGNED object, tuned by ear. I cannot hear what I
+ * write. Cuelume brings seventeen recipes tuned by someone who could.
  *
- * Pourquoi celle-ci et pas Howler ou use-sound : elles ne font que LIRE un
- * fichier, donc il faudrait embarquer des `.wav` (poids, licence, latence de
- * décodage). Cuelume synthétise en Web Audio — aucun octet d'asset, aucune
- * latence, et aucune dépendance transitive à auditer. Vérifié avant de le
- * vendorer : ni `fetch`, ni `localStorage`, ni `eval` dans son code.
+ * Why this one and not Howler or use-sound: those only PLAY a file, so we would
+ * have to ship `.wav` assets (weight, licence, decode latency). Cuelume
+ * synthesises through Web Audio — no asset bytes, no latency, and no transitive
+ * dependency to audit. Checked before vendoring: no `fetch`, no `localStorage`,
+ * no `eval` anywhere in it.
  *
- * Le choix des recettes est un choix de SENS, pas de goût :
- *   - `tick`    sélection dans le menu — sec, instantané, un cran ;
- *   - `press`   retirer un article — un coup mat, sans brillance ; l'action est
- *               destructive, elle ne doit pas sonner joyeuse ;
- *   - `toggle`  l'interrupteur de son — un clic-clac de bascule mécanique.
+ * Picking the recipes is a question of MEANING, not taste:
+ *   - `tick`    menu selection — dry, instant, a detent;
+ *   - `press`   removing an item — a dull knock, no sparkle; the action is
+ *               destructive, it must not sound cheerful;
+ *   - `toggle`  the sound switch — the click-clack of a mechanical flip.
  *
- * Les dix-sept sont auditionnables sur `src/sounds-preview.html` : c'est là qu'on
- * tranche, à l'oreille, pas ici.
+ * All seventeen can be auditioned on `src/sounds-preview.html`: that is where
+ * the choice is made, by ear, not here.
  */
 import { play, setEnabled, setVolume } from './vendor/cuelume/index.js';
 
@@ -28,7 +27,7 @@ let muted = false;
 
 setVolume(0.9);
 
-/** L'état est persisté : un son qu'on a coupé doit rester coupé. */
+/** The state is persisted: a sound that was silenced must stay silenced. */
 export async function loadMute() {
   try {
     const r = await chrome.storage.local.get({ muted: false });
@@ -52,16 +51,16 @@ export async function setMuted(v) {
   } catch {}
 }
 
-// Un son indisponible n'est jamais une raison de casser un clic.
+// An unavailable sound is never a reason to break a click.
 const safe = (name) => () => {
   try {
     play(name);
   } catch {}
 };
 
-/** Sélection, cran, ouverture de menu. */
+/** Selection, detent, opening a menu. */
 export const tick = safe('tick');
-/** Action destructive — retirer un article. */
+/** Destructive action — removing an item. */
 export const tock = safe('press');
-/** Bascule de l'interrupteur de son. */
+/** Flipping the sound switch. */
 export const flip = safe('toggle');

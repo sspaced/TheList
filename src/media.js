@@ -1,36 +1,34 @@
 /**
- * Les médias : ce qu'on garde pour LIRE, à côté de ce qu'on garde pour acheter.
+ * Media: what you keep to READ, next to what you keep to buy.
  *
- * Rangés dans `chrome.storage.local`, pas dans `sync` comme les produits, et ce
- * n'est pas un choix de confort : `sync` plafonne à 100 Ko au TOTAL et 8 Ko par
- * clé. Un passage cité tient ; un article entier fait 20 à 50 Ko et ferait
- * exploser le quota au deuxième enregistrement. Les deux sortes ne peuvent donc
- * pas cohabiter.
+ * Stored in `chrome.storage.local`, not in `sync` like products, and that is not
+ * a matter of convenience: `sync` caps at 100 KB in TOTAL and 8 KB per key. A
+ * quoted passage fits; a whole article runs 20 to 50 KB and would blow the quota
+ * on the second save. The two kinds simply cannot share that space.
  *
- * Conséquence assumée, à dire clairement : les médias ne se synchronisent PAS
- * entre plusieurs Chrome. Les produits, si.
+ * The consequence is deliberate and worth stating plainly: media does NOT sync
+ * between several Chrome installs. Products do.
  */
 
 const PREFIX = 'm:';
 
-/** djb2 → base36, comme pour les produits. */
+/** djb2 → base36, same as for products. */
 function hashId(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
   return h.toString(36);
 }
 
-/** Pour un titre, une URL, un domaine : tout sur une ligne. */
+/** For a title, a URL, a hostname: everything on one line. */
 const cut = (s, n) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, n) : '');
 
 /**
- * Pour le PASSAGE, on garde les retours à la ligne.
+ * For the PASSAGE itself, line breaks are kept.
  *
- * `\s+` → espace les avalait avec le reste : un texte de dix paragraphes
- * revenait en un seul bloc compact, illisible. Or la structure fait partie de ce
- * qu'on a sélectionné. On normalise donc seulement ce qui est du bruit : les
- * espaces horizontaux en trop, ceux qui traînent en bout de ligne, et les
- * enfilades de lignes vides — au plus une, comme dans un texte imprimé.
+ * `\s+` → space swallowed them along with the rest: ten paragraphs came back as
+ * a single compact block, unreadable. Yet the structure is part of what was
+ * selected. So we normalise only the noise: extra horizontal spaces, spaces
+ * trailing at end of line, and runs of blank lines — at most one, as in print.
  */
 const cutText = (s, n) =>
   typeof s === 'string'
@@ -44,9 +42,9 @@ const cutText = (s, n) =>
     : '';
 
 /**
- * L'identité d'un passage tient à SA PAGE ET À SON TEXTE : citer deux fois le
- * même paragraphe ne crée pas deux entrées, mais deux passages différents d'un
- * même article restent deux médias distincts.
+ * A passage is identified by ITS PAGE AND ITS TEXT: quoting the same paragraph
+ * twice does not create two entries, but two different passages from the same
+ * article remain two distinct media items.
  */
 export function makeQuote({ text, title, url, site }, now) {
   const body = cutText(text, 5000);

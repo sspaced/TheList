@@ -1,6 +1,6 @@
-// Stockage 100 % local. Les items vont dans chrome.storage.sync (synchro entre
-// tes Chrome, ~100 Ko / 512 clés max) — une clé par item, pas d'index central à
-// réécrire. La clé API OpenRouter reste dans storage.local : jamais synchronisée.
+// Storage is entirely local. Items go into chrome.storage.sync (synced between
+// your Chrome installs, ~100 KB / 512 keys max) — one key per item, no central
+// index to rewrite. The OpenRouter API key stays in storage.local: never synced.
 
 const PREFIX = 'i:';
 
@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS = {
   lastError: '',
 };
 
-// djb2 -> base36. Déterministe : ré-ajouter un produit met à jour sa fiche.
+// djb2 -> base36. Deterministic: re-adding a product updates its entry.
 export function hashId(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
@@ -23,22 +23,22 @@ export function hashId(str) {
 const cut = (s, n) => (typeof s === 'string' ? s.slice(0, n) : '');
 
 /**
- * Une URL ne se TRONQUE pas.
+ * A URL is never TRUNCATED.
  *
- * `image` passait par `cut(…, 300)`. Or les CDN d'images signent leurs URL :
- * Apple sert ses vignettes de panier avec un jeton `.v=` de plus de cent
- * caractères, plus des paramètres de taille et de traçage. Au-delà de 300, on
- * enregistrait une URL COUPÉE — donc une image qui ne charge jamais, une tuile
- * grise, et aucun message. Le pire des états : ni l'image, ni la raison.
+ * `image` used to go through `cut(…, 300)`. But image CDNs sign their URLs:
+ * Apple serves its bag thumbnails with a `.v=` token over a hundred characters
+ * long, plus sizing and tracing parameters. Past 300 we stored a CUT URL — an
+ * image that never loads, a grey tile, and no message. The worst state: neither
+ * the image nor the reason.
  *
- * On garde donc large (une clé de storage.sync tient 8 Ko, une URL de 1 000
- * caractères ne pèse rien), et au-delà on préfère RIEN à un lien mort.
+ * So the cap is generous (a storage.sync key holds 8 KB, a 1000-character URL is
+ * nothing), and beyond it we prefer NOTHING to a dead link.
  */
 const MAX_URL = 1000;
 const keepUrl = (s) => (typeof s === 'string' && s.length <= MAX_URL ? s : '');
 
-// Un item doit tenir sous 8 Ko et rester petit : on ne stocke jamais l'image
-// elle-même, seulement son URL.
+// An item must stay under 8 KB and remain small: we never store the image
+// itself, only its URL.
 export function makeItem(product, category, now) {
   return {
     id: hashId(product.url),
@@ -74,15 +74,15 @@ export async function putItem(item) {
 }
 
 /**
- * Ramène les articles déjà enregistrés vers les clés de catégorie.
+ * Moves already-stored items onto the category keys.
  *
- * Ils portaient un libellé français (`category: 'Meuble'`) qui servait à la fois
- * de clé et de texte affiché. Sans cette migration, un article ancien resterait
- * dans une catégorie « Meuble » invisible du filtre — le menu ne liste que les
- * clés connues — et il aurait disparu de l'interface sans être supprimé.
+ * They carried a French label (`category: 'Meuble'`) that served as both the key
+ * and the displayed text. Without this migration an older item would sit in a
+ * "Meuble" category the filter cannot see — the menu only lists known keys — and
+ * it would have vanished from the interface without being deleted.
  *
- * Conversion déterministe et sans perte : on n'écrit que ce qui change, donc
- * relancer la migration ne coûte rien.
+ * The conversion is deterministic and lossless: we only write what changes, so
+ * running the migration again costs nothing.
  */
 export async function migrateLegacyCategories() {
   const { LEGACY_LABELS } = await import('./categorize.js');
