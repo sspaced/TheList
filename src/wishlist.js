@@ -490,9 +490,10 @@ document.addEventListener('keydown', async (e) => {
     if (!last) return;
     e.preventDefault();
     tick();
-    // On revient d'abord dans la section concernée : rendre un article sans le
-    // montrer laisserait croire qu'il ne s'est rien passé.
-    section = last.section;
+    // On ne bascule QUE si l'article rendu serait invisible là où on se trouve.
+    // La section TOUT les montre tous, et rester dans la vue qu'on avait choisie
+    // vaut mieux que d'être déplacé pour rien.
+    if (section !== 'all' && section !== last.section) section = last.section;
     if (last.section === 'media') await putMedia(last.item);
     else await putItem(last.item);
     await refresh();
