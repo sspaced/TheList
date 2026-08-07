@@ -6,30 +6,11 @@
   box-sizing: border-box;
 }
 
-/* Une seule définition de barre pour toute la page : 3 px, pouce noir, piste
-   transparente. On n'utilise PAS `scrollbar-width` : dès qu'elle est déclarée,
-   Chrome ignore les pseudo-éléments `::-webkit-scrollbar` et on perd le contrôle
-   de la largeur exacte. */
+/* Aucune barre de défilement, nulle part. Le contenu défile toujours — molette,
+   trackpad, clavier — mais rien ne s'affiche : la page n'a que des traits noirs
+   de 1 px, une barre y était le seul élément à ne pas suivre cette règle. */
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Invisible au repos. Une barre stylée en `::-webkit-scrollbar` est peinte en
-   permanence, contrairement aux barres système qui s'effacent : on rend donc le
-   pouce transparent par défaut et une classe posée en JavaScript le fait
-   apparaître le temps du défilement. */
-::-webkit-scrollbar-thumb {
-  background: transparent;
-}
-
-.scrolling::-webkit-scrollbar-thumb,
-.quote:hover::-webkit-scrollbar-thumb {
-  background: #000;
+  display: none;
 }
 
 html,
@@ -238,12 +219,11 @@ body {
      tient sa hauteur d'un `aspect-ratio`, sans hauteur explicite à laquelle un
      pourcentage puisse se référer. Le texte débordait donc au lieu de défiler. */
   position: absolute;
-  /* Le cadre du texte commence SOUS la croix : elle occupe 22 px à 4 px du bord,
-     donc son bas est à 26 px, et on laisse 4 px d'air. C'est le conteneur qui
-     descend, pas seulement le texte — ainsi la barre de défilement, qui longe son
-     bord, ne passe plus derrière le bouton. 29 et non 30 : la croix est
-     positionnée sur la TUILE, la citation à l'intérieur du cadre, dont la
-     bordure de 1 px décale tout ce qu'il contient. */
+  /* Le texte commence SOUS la croix : elle occupe 22 px à 4 px du bord, donc son
+     bas est à 26 px, et on laisse 4 px d'air. Sans ça, les premières lignes
+     passaient derrière le bouton. 29 et non 30 : la croix est posée sur la
+     TUILE, la citation à l'intérieur du cadre, dont la bordure de 1 px décale
+     tout ce qu'il contient. */
   top: 29px;
   right: 0;
   bottom: 0;
@@ -360,11 +340,6 @@ body {
   gap: 4px;
   height: 100%;
   overflow-y: auto;
-  /* La marge négative annule le padding du body à droite : la barre se colle au
-     bord de la fenêtre, tandis que le `padding-right` rend aux tuiles les 4 px
-     qu'elles avaient. */
-  margin-right: -4px;
-  padding-right: 4px;
   /* La grille se remplit par le haut : sans ça, une seule rangée s'étirerait sur
      toute la hauteur disponible. */
   align-content: start;

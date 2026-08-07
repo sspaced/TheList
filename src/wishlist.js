@@ -515,25 +515,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && Object.keys(changes).some((k) => k.startsWith('m:'))) refresh();
 });
 
-/**
- * Fait apparaître la barre de défilement le temps du geste, puis l'efface.
- * Une barre stylée reste peinte en permanence — c'est le prix du contrôle sur sa
- * largeur — donc on lui rend à la main le comportement des barres système.
- */
-function fadingScrollbar(el, delay = 700) {
-  let timer;
-  el.addEventListener(
-    'scroll',
-    () => {
-      el.classList.add('scrolling');
-      clearTimeout(timer);
-      timer = setTimeout(() => el.classList.remove('scrolling'), delay);
-    },
-    { passive: true },
-  );
-}
-fadingScrollbar(grid);
-
 qInput.oninput = () => {
   query = qInput.value;
   render();
