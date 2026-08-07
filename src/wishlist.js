@@ -168,7 +168,7 @@ function matches(o) {
  * Merchants write whole sentences — "Mellow Clo Everyday Stretch Nylon
  * TrousersBlack" — and on a line shared with the hostname and the price there is
  * room for nothing else. The first two words are enough to recognise an item you
- * saved yourself; the full title stays in the link's tooltip.
+ * saved yourself.
  *
  * The character cap is a second barrier: two words can be very long. The ellipsis
  * only appears when something was cut — showing it always would suggest a
@@ -224,7 +224,6 @@ function tile(item) {
   a.href = item.url;
   a.target = '_blank';
   a.rel = 'noreferrer noopener';
-  a.title = item.title || '';
 
   const shot = document.createElement('div');
   shot.className = 'shot';
@@ -266,7 +265,11 @@ function tile(item) {
   del.className = 'del';
   del.type = 'button';
   del.textContent = '×';
-  del.title = t('removeItem');
+  // `aria-label` rather than `title`: the native tooltip is a grey box that pops
+  // up over the neighbouring tile a second after the cursor stops, and the cross
+  // needs no caption to be understood. The label is still owed to screen readers,
+  // which would otherwise announce the button as "multiplication sign".
+  del.setAttribute('aria-label', t('removeItem'));
   del.onclick = async () => {
     tock();
     undone.push({ section: 'products', item });
@@ -292,7 +295,6 @@ function mediaTile(item) {
   a.href = item.url;
   a.target = '_blank';
   a.rel = 'noreferrer noopener';
-  a.title = item.title || '';
 
   const shot = document.createElement('div');
   shot.className = 'shot shot-quote';
@@ -317,7 +319,7 @@ function mediaTile(item) {
   del.className = 'del';
   del.type = 'button';
   del.textContent = '×';
-  del.title = t('removeMedia');
+  del.setAttribute('aria-label', t('removeMedia'));
   del.onclick = async () => {
     tock();
     undone.push({ section: 'media', item });
@@ -557,9 +559,9 @@ sectionBtn.onclick = () => {
 
 function paintMute() {
   muteBtn.setAttribute('aria-pressed', String(isMuted()));
-  muteBtn.title = isMuted() ? t('muteOff') : t('muteOn');
+  muteBtn.setAttribute('aria-label', isMuted() ? t('muteOff') : t('muteOn'));
   qInput.placeholder = t('search');
-  keysBtn.title = t('shortcuts');
+  keysBtn.setAttribute('aria-label', t('shortcuts'));
 }
 
 muteBtn.onclick = async () => {
