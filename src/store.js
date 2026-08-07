@@ -67,6 +67,10 @@ export function makeItem(product, category, now) {
     // Kept now that the quota allows it. It was extracted, used to classify, then
     // dropped — so a product could not be found by searching its description.
     desc: cut(product.desc, 400),
+    // The shelf the merchant declared. Kept for the same reason as `desc`: the
+    // classification is re-run when the lexicon changes, and it can only re-read
+    // what was stored.
+    hint: cut(product.hint, 200),
     ts: now,
   };
 }

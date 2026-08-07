@@ -216,7 +216,29 @@
   // swallowed both and parsePrice pulled an absurd number out of it.
   const CUR_RE = '(?:[€$£¥]|\\b(?:CHF|EUR|USD|GBP|CAD|JPY)\\b)';
   const PRICE_RE = new RegExp(`${CUR_RE}\\s?\\d[\\d\\s.,]*|\\d[\\d\\s.,]*?\\s?${CUR_RE}`, 'i');
+  const ONLY_MONEY = new RegExp(`^(?:${CUR_RE})?[\\s\\d.,]+(?:${CUR_RE})?$`, 'i');
 
+  /** The rendered lines of a block, minus the ones that are only an amount. */
+  const cardText = (el) =>
+    (el.innerText || '')
+      .split('\n')
+      .map(clean)
+      .filter((l) => l && !ONLY_MONEY.test(l))
+      .join(' ')
+      .slice(0, 140);
+
+  /**
+   * A CARD WITH NO HEADING STILL HAS LINES.
+   *
+   * Measured on END's grid: its cards carry no `h1`–`h3` and no `aria-label`, so
+   * the name had to come from the card's own text — and `textContent` glues block
+   * elements together with nothing between them: "…Vacation ShirtBlack &
+   * Beige£125".
+   *
+   * `innerText` is the difference: it is what is RENDERED, so each block becomes
+   * its own line. Lines that are nothing but an amount are dropped — the price
+   * already has a field of its own — and the rest reads as the product's name.
+   */
   // Two thresholds, tried in order. The first looks for a packshot; the second
   // only exists to catch small thumbnails (a basket line's image is around 200 px
   // a side and was being rejected as decoration). Without that gradation, lowering
@@ -609,9 +631,7 @@
       const money = records.length
         ? pickAmount(records.flatMap((r) => r.amounts))
         : { price: null, currency: '' };
-      // Last resort, and a poor one — it drags the price along with the name — but
-      // still better than the document title, which is the LISTING's title.
-      const title = head.text || clean(PICKED.getAttribute('aria-label')) || clean(PICKED.textContent).slice(0, 120);
+      const title = head.text || clean(PICKED.getAttribute('aria-label')) || cardText(PICKED);
       if (!title) return null;
       return {
         title,
@@ -707,6 +727,72 @@
     };
   }
 
+  /**
+   * WHERE THE MERCHANT FILES THE PRODUCT.
+   *
+   * A title is a brand and a model code: "Studio Display XDR", "Carhartt WIP
+   * Leavel". It almost never contains the name of a category, which is why
+   * classifying from it lands things in "other". The merchant, though, says
+   * exactly where the product sits — Apple declares `Mac > Moniteurs`, END
+   * declares `Mens > Clothing > Shirts` — and says it in a standard place, because
+   * search engines demand it.
+   *
+   * So this is the same discipline as the rest of the file: read what is DECLARED
+   * (BreadcrumbList, `product:category`), never a class name, nothing per-site.
+   *
+   * The product's own name is dropped from the trail: the last crumb is the page
+   * itself, and keeping it would just feed the title back in under another name.
+   * On a PICKED page that pruning is switched off — a listing is a shelf, not a
+   * product, so its last crumb ("Shirts") is precisely the answer.
+   */
+  const SHELF_NOISE =
+    /^(?:home|accueil|shop|boutique|store|index|catalog(?:ue)?|all|tout|sale|soldes|outlet|new in|nouveaut[eé]s?|brands?|marques?|search|recherche|men|mens|women|womens|homme|femme|unisexe?)$/i;
+
+  function declaredShelf(productTitle) {
+    const names = [];
+    const walk = (n, d = 0) => {
+      if (!n || d > 6) return;
+      if (Array.isArray(n)) return n.forEach((x) => walk(x, d + 1));
+      if (typeof n !== 'object') return;
+      if (isType(n, 'breadcrumblist')) {
+        for (const it of [].concat(n.itemListElement || [])) {
+          const nm = clean(it?.name || it?.item?.name);
+          if (nm) names.push(nm);
+        }
+      }
+      if (isType(n, 'product') && n.category) {
+        names.push(clean(typeof n.category === 'object' ? n.category?.name : n.category));
+      }
+      for (const k of ['@graph', 'mainEntity', 'mainEntityOfPage', 'itemListElement', 'item', 'isPartOf']) {
+        if (n[k]) walk(n[k], d + 1);
+      }
+    };
+    for (const sc of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        walk(JSON.parse(sc.textContent.trim()));
+      } catch {}
+    }
+    names.push(meta('meta[property="product:category"]'), meta('meta[itemprop="category"]'));
+
+    const titleWords = PICKED ? new Set() : wordsOf(productTitle || document.title);
+    return [
+      ...new Set(
+        names
+          .filter(Boolean)
+          .filter((n) => !SHELF_NOISE.test(n))
+          .filter((n) => {
+            // Half the crumb's words already in the product's name means the crumb
+            // IS the product. Same measure as `headingOf`, same threshold.
+            const w = wordsOf(n);
+            if (!w.size || !titleWords.size) return true;
+            return [...w].filter((x) => titleWords.has(x)).length / w.size < 0.5;
+          }),
+      ),
+    ]
+      .join(' > ')
+      .slice(0, 200);
+  }
+
   // ---------- Canonical URL, tracking stripped ----------
   const STRIP = /^(utm_|gclid|fbclid|msclkid|mc_|_ga|ref|ref_|tag|source|spm|cm_|psc|th|smid|linkCode|creative|camp)/i;
   function canonical() {
@@ -758,6 +844,10 @@
   const domLayer = layers.find((l) => l.source === 'dom');
   if (domLayer?.products?.length > 1) out.products = domLayer.products;
   if (!out.title) return null;
+  // Stored alongside the product, not merely used once: the lexicon gets fixed
+  // from time to time, and the pass that re-runs it over the whole list can only
+  // do as well as what was kept.
+  out.hint = declaredShelf(out.title);
   // A stable output shape, even when a layer gave nothing.
   for (const k of ['image', 'brand', 'desc', 'currency']) out[k] = out[k] || '';
   out.price = typeof out.price === 'number' ? out.price : null;

@@ -56,9 +56,37 @@
     return false;
   };
 
+  /**
+   * How many PACKSHOT-sized images a block holds. One card shows one photo, two
+   * if it swaps on hover. A grid holds twenty-four.
+   *
+   * Counting stops at three: the number itself is of no interest, only whether we
+   * have climbed past the card, and this runs on every pointer move.
+   */
+  const CARD_AREA = 40000; // ~200x200: a packshot, not a gallery thumbnail
+  const bigImages = (el) => {
+    let n = 0;
+    for (const img of el.querySelectorAll('img')) {
+      const r = img.getBoundingClientRect();
+      if (r.width * r.height >= CARD_AREA && ++n > 2) break;
+    }
+    return n;
+  };
+
+  /**
+   * The climb stops at the first block holding an image and an amount — AND
+   * refuses it if that block is plainly the whole list.
+   *
+   * Measured on END's listing: a cookie banner covers the pointer, so the stack
+   * below hands us one of the banner's own nodes, whose ancestors are the page
+   * root. The climb then "succeeded" on a block containing the twenty-four cards,
+   * the filter sidebar and a promo link. Refusing it lets the caller try the next
+   * element in the stack, which is the card actually under the cursor.
+   */
   const candidate = (from) => {
     for (let n = from; n && n !== document.body; n = n.parentElement) {
-      if (hasImage(n) && PRICE.test(n.innerText || '')) return n;
+      if (!hasImage(n) || !PRICE.test(n.innerText || '')) continue;
+      return bigImages(n) > 2 ? null : n;
     }
     return null;
   };
@@ -113,10 +141,21 @@
     requestAnimationFrame(draw);
   };
 
+  /**
+   * `elementsFromPoint`, PLURAL — and that is not a detail.
+   *
+   * Measured on END's listing: a cookie banner lays a full-viewport filter over
+   * the page, so `elementFromPoint` returns the filter, the climb finds no
+   * product, and pick mode outlines nothing while looking perfectly alive. Reading
+   * the whole stack lets us find the card underneath. Our own host is
+   * `pointer-events:none`, so it never appears in that stack.
+   */
   const at = (x, y) => {
-    // The host is `pointer-events:none`, so `elementFromPoint` sees through it.
-    const el = document.elementFromPoint(x, y);
-    return el ? candidate(el) : null;
+    for (const el of document.elementsFromPoint(x, y).slice(0, 8)) {
+      const hit = candidate(el);
+      if (hit) return hit;
+    }
+    return null;
   };
 
   let lastX = 0;

@@ -72,6 +72,15 @@ const PROMPT_LABELS = Object.entries(LEGACY_LABELS).map(([label]) => label);
 const FALLBACK = 'other';
 
 /**
+ * EVERY NOUN TOLERATES ITS PLURAL (`shirts?\b`), AND THAT IS NOT COSMETIC.
+ *
+ * `shirt\b` does not match "Shirts". Measured on END, whose breadcrumb reads
+ * `Mens > Clothing > Shirts`: the single strongest signal on the page was being
+ * thrown away over one letter. A shelf is named in the plural, always — that is
+ * what a shelf is.
+ */
+
+/**
  * THE LEXICON IS BILINGUAL, AND IT HAS TO BE.
  *
  * It only spoke French. On an English-language shop "Chase T-Shirt" landed in
@@ -91,40 +100,95 @@ const FALLBACK = 'other';
  * carries the old answer and nothing would ever revisit it — see
  * `recategorizeIfStale` in store.js, which re-runs the pass once per revision.
  */
-export const CAT_REV = 2;
+export const CAT_REV = 3;
 
 const KEYWORDS = [
   ['shoes', /chaussure|sneaker|basket|boot|bottin|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe|air max|air force|air jordan|espadrille|derby|richelieu/i],
-  ['jewellery', /montre|watch|bijou|jewel|collier|necklace|bracelet|bague|ring\b|boucle d.oreille|earring/i],
+  ['jewellery', /montre|watch|bijou|jewel|collier|necklace|bracelet|bague|rings?\b|boucle d.oreille|earring/i],
   ['beauty', /parfum|perfume|fragrance|creme|crème|cream|serum|sérum|maquillage|makeup|rouge à lèvres|lipstick|shampoing|shampoo|skincare|cosmeti/i],
-  ['computing', /laptop|macbook|ordinateur|pc portable|clavier|keyboard|souris|mouse\b|ssd|disque dur|hard drive|ram |écran \d|monitor|imprimante|printer/i],
+  // `moniteur` and `display`: measured on Apple, whose breadcrumb reads
+  // "Mac > Moniteurs" and whose URL ends in `studio-display-xdr`, while the title
+  // — "Studio Display XDR" — contains no category noun at all. A "display
+  // cabinet" would land here rather than in furniture; that is the price, and it
+  // is cheaper than a monitor filed under "other".
+  ['computing', /laptop|macbook|ordinateur|pc portable|clavier|keyboard|souris|mouses?\b|ssd|disque dur|hard drive|ram |écran \d|moniteur|monitor|\bdisplays?\b|imprimante|printer/i],
   ['audio', /casque|écouteur|ecouteur|headphone|earbud|enceinte|speaker|ampli|turntable|platine|micro |microphone/i],
   ['photo', /appareil photo|objectif|lens\b|caméra|camera|gopro|trépied|tripod|drone/i],
-  ['electronics', /iphone|smartphone|téléphone|phone\b|tablette|tablet|ipad|tv |télévision|television|console|playstation|xbox|nintendo|montre connectée|smartwatch/i],
-  ['kitchen', /poêle|casserole|pan\b|pot\b|couteau de cuisine|kitchen knife|robot cuiseur|mixeur|blender|cafetière|coffee maker|expresso|espresso|vaisselle|assiette|plate\b|verre à|mug\b/i],
+  ['electronics', /iphone|smartphone|téléphone|phones?\b|tablette|tablet|ipad|tv |télévision|television|console|playstation|xbox|nintendo|montre connectée|smartwatch/i],
+  ['kitchen', /poêle|casserole|pans?\b|pots?\b|couteau de cuisine|kitchen knife|robot cuiseur|mixeur|blender|cafetière|coffee maker|expresso|espresso|vaisselle|assiette|plates?\b|verre à|mugs?\b/i],
   // Before furniture: "Lampe de table" matched furniture's `table` first.
   ['home', /lampe de table|table lamp|lampe|luminaire|applique/i],
-  ['furniture', /canapé|sofa|couch|fauteuil|armchair|table |desk\b|chaise|chair\b|bureau |étagère|shelf|shelving|lit |bed\b|matelas|mattress|commode|dresser|armoire|wardrobe/i],
-  ['home', /coussin|cushion|rideau|curtain|tapis|rug\b|lampe|lamp\b|luminaire|linge de lit|bedding|couette|duvet cover|décoration|candle|bougie|aspirateur|vacuum/i],
-  ['games', /jeu de société|board game|lego|puzzle|figurine|jouet|toy\b|jeu vidéo|video game|manette|controller/i],
-  ['books', /livre|book\b|roman|novel|bd |manga|essai|guide /i],
-  ['sport', /haltère|dumbbell|yoga|fitness|vélo|velo|bike\b|bicycle|running|tapis de course|treadmill|raquette|racket|ballon|maillot|jersey/i],
-  ['outdoor', /tente|tent\b|randonnée|hiking|sac à dos|backpack|camping|duvet|escalade|climbing|ski|snowboard/i],
+  ['furniture', /canapé|sofa|couch|fauteuil|armchair|table |desks?\b|chaise|chairs?\b|bureau |étagère|shelf|shelves|shelving|lit |beds?\b|matelas|mattress|commode|dresser|armoire|wardrobe/i],
+  ['home', /coussin|cushion|rideau|curtain|tapis|rugs?\b|lampe|lamps?\b|luminaire|linge de lit|bedding|couette|duvet cover|décoration|candle|bougie|aspirateur|vacuum/i],
+  ['games', /jeu de société|board game|lego|puzzle|figurine|jouet|toys?\b|jeu vidéo|video game|manette|controller/i],
+  ['books', /livre|books?\b|roman|novel|bd |manga|essai|guide /i],
+  ['sport', /haltère|dumbbell|yoga|fitness|vélo|velo|bikes?\b|bicycle|running|tapis de course|treadmill|raquette|racket|ballon|maillot|jersey/i],
+  ['outdoor', /tente|tents?\b|randonnée|hiking|sac à dos|backpack|camping|duvet|escalade|climbing|ski|snowboard/i],
   ['kids', /bébé|bebe|baby|poussette|stroller|biberon|couche|nappy|diaper|enfant|kids?\b|puériculture/i],
-  ['pets', /chien|dog\b|chat |cat\b|croquette|litière|litter|aquarium|niche|laisse|leash/i],
-  ['diy', /perceuse|drill\b|visseuse|scie |saw\b|outil|tool\b|établi|workbench|peinture murale|quincaillerie|hardware/i],
-  ['auto', /pneu|tyre|tire\b|voiture|\bcar\b|moto|motorbike|casque moto|autoradio|coffre de toit|huile moteur/i],
-  ['food', /café en grain|coffee bean|thé |\btea\b|chocolat|chocolate|vin |wine\b|whisky|whiskey|bière|beer\b|épice|spice|huile d.olive|olive oil/i],
+  ['pets', /chien|dogs?\b|chat |cats?\b|croquette|litière|litter|aquarium|niche|laisse|leash/i],
+  ['diy', /perceuse|drills?\b|visseuse|scie |saws?\b|outil|tools?\b|établi|workbench|peinture murale|quincaillerie|hardware/i],
+  ['auto', /pneu|tyre|tires?\b|voiture|\bcars?\b|moto|motorbike|casque moto|autoradio|coffre de toit|huile moteur/i],
+  ['food', /café en grain|coffee bean|thé |\bteas?\b|chocolat|chocolate|vin |wines?\b|whisky|whiskey|bière|beers?\b|épice|spice|huile d.olive|olive oil/i],
   ['health', /complément alimentaire|supplement|vitamine|vitamin|tensiomètre|masseur|massage|orthèse|pharmacie|pharmacy/i],
   // Fashion LAST: its words are the most generic ("shirt", "bag") and would
   // otherwise swallow "laptop bag" or "running shoe".
-  ['fashion', /t-?shirt|shirt\b|chemise|top\b|pantalon|trousers|pants\b|jean|robe|dress\b|veste|jacket|manteau|coat\b|parka|pull|sweater|knit|sweat|hoodie|jupe|skirt|short|sac\b|bag\b|ceinture|belt\b|lunettes de soleil|sunglasses|cap\b|beanie|scarf|écharpe|socks?|chaussettes?/i],
+  ['fashion', /t-?shirt|shirts?\b|chemise|tops?\b|pantalon|trousers|pants\b|jean|robe|dress\b|veste|jacket|manteau|coats?\b|parka|pull|sweater|knit|sweat|hoodie|jupe|skirt|short|sacs?\b|bags?\b|ceinture|belts?\b|lunettes de soleil|sunglasses|caps?\b|beanie|scarf|écharpe|socks?|chaussettes?/i],
 ];
 
+/**
+ * The words of a URL's path, SKUs removed.
+ *
+ * `/gb/clothing/shirts` and `/fr/shop/buy-mac/studio-display-xdr` both name the
+ * shelf where the merchant filed the product, and a path is the one thing every
+ * stored item already has. Tokens containing a digit go: `i036203-3k5x` is a
+ * reference, not a word, and its letters produce accidental matches.
+ */
+const pathWords = (url) => {
+  try {
+    return decodeURIComponent(new URL(url).pathname)
+      .replace(/\.[a-z]{2,5}$/i, '')
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w.length > 2 && !/\d/.test(w))
+      .join(' ');
+  } catch {
+    return '';
+  }
+};
+
+const match = (s) => {
+  if (!s) return null;
+  for (const [cat, re] of KEYWORDS) if (re.test(s)) return cat;
+  return null;
+};
+
+/**
+ * THE SIGNALS ARE TRIED IN ORDER, NOT POURED INTO ONE HAYSTACK.
+ *
+ * One haystack lets the ORDER OF THE RULES decide instead of the quality of the
+ * evidence: `shirt` sitting in the URL would lose to a stray `table` in a
+ * description, because furniture happens to be declared before fashion. Running
+ * the lexicon signal by signal puts that choice back where it belongs.
+ *
+ * From the most deliberate statement to the vaguest:
+ *   1. the shelf the MERCHANT declares — a breadcrumb, a `product:category`.
+ *      "Mac > Moniteurs" is an assertion; "Studio Display XDR" is a name.
+ *   2. the URL's path, which names the same shelf and which every already-stored
+ *      item carries, so a fix reaches the whole list without re-saving anything.
+ *   3. the title and the brand — a brand plus a model code far more often than a
+ *      category noun, which is exactly why they come third.
+ *   4. the description, last: it is prose, and prose mentions everything.
+ *
+ * `site` was dropped from the evidence. A domain is a brand, not a shelf, and it
+ * only ever produced accidents — `boots.com` filing everything under shoes.
+ */
 export function guess(product) {
-  const hay = [product.title, product.brand, product.desc, product.site].filter(Boolean).join(' ');
-  for (const [cat, re] of KEYWORDS) if (re.test(hay)) return cat;
-  return FALLBACK;
+  return (
+    match(product.hint) ||
+    match(pathWords(product.url)) ||
+    match([product.title, product.brand].filter(Boolean).join(' ')) ||
+    match(product.desc) ||
+    FALLBACK
+  );
 }
 
 // The model answers in free text AND in French: we map its reply back into the
