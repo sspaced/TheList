@@ -1,5 +1,5 @@
-// Injecté à la demande dans l'onglet actif (activeTab). Aucun état global :
-// tout est dans une IIFE, dont la valeur de retour remonte via executeScript().
+// Injected on demand into the active tab (activeTab). No global state: everything
+// lives in an IIFE, whose return value travels back through executeScript().
 (() => {
   const clean = (s) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '');
 
@@ -20,7 +20,7 @@
     const s = String(raw).replace(/[^\d.,]/g, '');
     if (!/\d/.test(s)) return null;
     const i = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
-    // Un séparateur suivi de 1-2 chiffres = décimale ; sinon c'est du groupement.
+    // A separator followed by 1-2 digits is a decimal point; otherwise grouping.
     const out =
       i >= 0 && /^\d{1,2}$/.test(s.slice(i + 1))
         ? s.slice(0, i).replace(/[.,]/g, '') + '.' + s.slice(i + 1)
@@ -181,36 +181,36 @@
     };
   }
 
-  // ---------- 4. Heuristique DOM ----------
-  // « 169,99 € » autant que « €169.99 » : le symbole précède ou suit le montant.
-  // L'ancienne expression exigeait un caractère de MOT après le symbole (`\b`) : un
-  // prix à la française, symbole en dernier et rien derrière, ne matchait donc
-  // JAMAIS. Seuls les sites en locale anglaise (« €169.99 ») étaient lus.
+  // ---------- 4. DOM heuristics ----------
+  // "169,99 €" as much as "€169.99": the symbol comes before or after the amount.
+  // The previous expression required a WORD character after the symbol (`\b`), so a
+  // French-style price — symbol last, nothing behind it — NEVER matched. Only shops
+  // in an English locale ("€169.99") were being read.
   //
-  // Le quantificateur du montant est PARESSEUX : sur « 169,99 € 209,99 € », une
-  // capture gourmande avalait les deux et parsePrice en tirait un nombre absurde.
+  // The amount's quantifier is LAZY: on "169,99 € 209,99 €" a greedy capture
+  // swallowed both and parsePrice pulled an absurd number out of it.
   const CUR_RE = '(?:[€$£¥]|\\b(?:CHF|EUR|USD|GBP|CAD|JPY)\\b)';
   const PRICE_RE = new RegExp(`${CUR_RE}\\s?\\d[\\d\\s.,]*|\\d[\\d\\s.,]*?\\s?${CUR_RE}`, 'i');
 
-  // Deux seuils, essayés dans l'ordre. Le premier cherche un packshot ; le
-  // second n'existe que pour rattraper les petites vignettes (celle d'un article
-  // de panier fait ~200 px de côté et se faisait rejeter comme du décor). Sans
-  // ce dégradé, abaisser le seuil unique faisait gagner une icône SVG.
+  // Two thresholds, tried in order. The first looks for a packshot; the second
+  // only exists to catch small thumbnails (a basket line's image is around 200 px
+  // a side and was being rejected as decoration). Without that gradation, lowering
+  // a single threshold let an SVG icon win.
   const BIG_AREA = 45000; // ~212x212
   const SMALL_AREA = 10000; // 100x100
 
   /**
-   * CE QUI N'EST PAS LE CONTENU DE LA PAGE.
+   * WHAT IS NOT THE PAGE'S CONTENT.
    *
-   * Landmarks HTML et rôles ARIA, rien d'autre : c'est du standard, pas de la
-   * connaissance d'un site. Mesuré sur une fiche Amazon avec panier rempli, le
-   * volet panier est un `[role=dialog]` dans un `[role=navigation]` dans un
-   * `<header>` — et il s'installe à 12 px du haut, avec son propre `<h1>`
-   * (« Sous-total »), son propre prix et sa propre vignette produit.
+   * HTML landmarks and ARIA roles, nothing else: that is standard, not knowledge
+   * of a site. Measured on an Amazon product page with a filled basket, the basket
+   * flyout is a `[role=dialog]` inside a `[role=navigation]` inside a `<header>` —
+   * and it settles 12 px from the top, with its own `<h1>` ("Sous-total"), its own
+   * price and its own product thumbnail.
    *
-   * C'est ce panneau qui gagnait : ni la surface ni la position ne pouvaient
-   * l'écarter puisqu'il est en haut et qu'il contient un vrai produit. Sa nature,
-   * en revanche, le dit sans ambiguïté — c'est de la navigation.
+   * That panel was winning: neither area nor position could rule it out, since it
+   * sits at the top and does contain a real product. Its NATURE, on the other hand,
+   * says so unambiguously — it is navigation.
    */
   const CHROME = [
     'header', 'nav', 'footer', 'aside', 'dialog',
@@ -220,24 +220,24 @@
   const inChrome = (el) => !!el.closest(CHROME);
 
   /**
-   * La zone de contenu déclarée par la page (`<main>` ou `[role=main]`). Quand
-   * elle existe, tout se joue dedans : la fiche Amazon déclare un
-   * `[role=main]` dont le volet panier est, par construction, dehors.
+   * The content area the page declares (`<main>` or `[role=main]`). When it exists
+   * everything happens inside it: the Amazon product page declares a `[role=main]`
+   * that the basket flyout is, by construction, outside of.
    */
   const contentRoot = () => document.querySelector('main, [role=main]') || document.body;
 
   /**
-   * LE PACKSHOT EST EN HAUT DE LA PAGE.
+   * THE PACKSHOT IS AT THE TOP OF THE PAGE.
    *
-   * « Prendre la plus grande image » ne pouvait pas marcher, et ce n'est pas un
-   * réglage à ajuster : c'est le critère qui est faux. Mesuré sur une fiche
-   * Amazon, la bannière marketing fait 915 000 px² à 7 643 px du haut, le
-   * packshot 460 000 px² à 300 px. Le marketing est PLUS GRAND que le produit,
-   * toujours — c'est fait pour.
+   * "Take the biggest image" could not work, and it is not a threshold to tune:
+   * the criterion itself is wrong. Measured on an Amazon product page, the
+   * marketing banner is 915,000 px² at 7,643 px from the top, the packshot
+   * 460,000 px² at 300 px. Marketing is BIGGER than the product, always — that is
+   * what it is for.
    *
-   * La position verticale, elle, sépare proprement les deux : le produit est en
-   * tête de page, le discours commercial en dessous. On ne regarde donc que le
-   * haut du document, et on prend la plus grande de CELLES-LÀ.
+   * Vertical position, on the other hand, separates the two cleanly: the product
+   * heads the page, the sales pitch sits below. So we only look at the top of the
+   * document, and take the biggest among THOSE.
    */
   const foldLimit = () => Math.max(1.2 * (window.innerHeight || 800), 1000);
 
@@ -249,17 +249,17 @@
       const h = img.naturalHeight || img.height;
       const area = w * h;
       if (!area || area <= bestArea) continue;
-      if (inChrome(img)) continue; // en-tête, volet panier, bandeau…
+      if (inChrome(img)) continue; // header, basket flyout, banner…
       const r = img.getBoundingClientRect();
-      if (!r.width || !r.height) continue; // caché
-      // Coordonnées DOCUMENT, pas fenêtre : l'utilisateur a pu scroller avant
-      // d'appuyer sur le raccourci, et le haut de la page reste le haut de la page.
+      if (!r.width || !r.height) continue; // hidden
+      // DOCUMENT coordinates, not viewport: the user may have scrolled before
+      // pressing the shortcut, and the top of the page is still the top of the page.
       if (r.top + window.scrollY > maxTop) continue;
       const src = img.currentSrc || img.src;
       if (!src || src.startsWith('data:')) continue;
-      // Un SVG est un pictogramme — étoile de notation, badge, logo — et il
-      // annonce des dimensions arbitraires, donc une surface énorme. Aucune
-      // boutique ne photographie un produit en SVG.
+      // An SVG is a pictogram — a rating star, a badge, a logo — and it declares
+      // arbitrary dimensions, hence a huge area. No shop photographs a product in
+      // SVG.
       if (/\.svg(?:[?#]|$)/i.test(src)) continue;
       best = src;
       bestArea = area;
@@ -268,35 +268,17 @@
   }
 
   /**
-   * LE PRODUIT, PAS LA PAGE — d'où venaient le mauvais prix et la mauvaise photo.
+   * WHICH <h1> IS THE PRODUCT'S TITLE?
    *
-   * Chercher « la plus grande image » et « le premier prix » dans le document
-   * entier, c'est accepter tout ce qui entoure le produit : le panier et son
-   * sous-total, les bandeaux promotionnels, les articles sponsorisés, le contenu
-   * marketing en bas de page — lequel porte des images bien plus grandes que le
-   * packshot. Mesuré sur une fiche Amazon : sous-total du PANIER retenu comme
-   * prix, bannière publicitaire retenue comme photo.
+   * Not the first in the DOM, not the highest on screen — both fooled me. Amazon
+   * puts up seven: a screen-reader heading, two invisible templates, section
+   * headings, and — with a filled basket — the flyout's own, 12 px from the top.
+   * No geometric criterion separates them.
    *
-   * On délimite donc d'abord le bloc produit : le plus petit ancêtre du titre qui
-   * contienne aussi une vraie image. En dessous il n'y a que du texte, au-dessus
-   * on ressort de la fiche. Le titre est le seul point d'ancrage fiable d'une
-   * page produit — il y en a un, et l'image comme le prix vivent avec lui.
-   *
-   * Aucune connaissance d'un site en particulier ici : rien à maintenir quand une
-   * boutique refait son thème, et ça vaut pour la prochaine boutique inconnue.
-   */
-  /**
-   * QUEL <h1> EST LE TITRE DU PRODUIT ?
-   *
-   * Pas le premier du DOM, pas le plus haut à l'écran — les deux m'ont trompé.
-   * Amazon en pose sept : un en-tête d'accessibilité, deux gabarits invisibles,
-   * des titres de section, et — panier rempli — celui du volet panier, à 12 px du
-   * haut. Aucun critère géométrique ne les sépare.
-   *
-   * Le signal qui les sépare ne dépend d'aucun site : le <title> du document EST
-   * le nom du produit sur une fiche produit. Mesuré sur cette page, le
-   * recoupement de vocabulaire entre chaque h1 et le <title> vaut 1,00 pour le
-   * titre du produit et 0,00 pour tous les leurres.
+   * The signal that does depends on no site at all: on a product page the
+   * document's <title> IS the product's name. Measured on that page, the vocabulary
+   * overlap between each h1 and the <title> is 1.00 for the product's title and
+   * 0.00 for every decoy.
    */
   const wordsOf = (s) =>
     new Set(
@@ -316,7 +298,7 @@
     for (const el of root.querySelectorAll('h1')) {
       if (inChrome(el)) continue;
       const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) continue; // gabarit, jamais affiché
+      if (!r.width || !r.height) continue; // a template, never displayed
       const w = wordsOf(el.textContent);
       const overlap = w.size ? [...w].filter((x) => docWords.has(x)).length / w.size : 0;
       const top = r.top + window.scrollY;
@@ -330,38 +312,36 @@
   }
 
   /**
-   * LE PRODUIT EST LE CONTENEUR QUI TIENT SON TITRE, SON PRIX ET SON IMAGE.
+   * A PRODUCT IS THE CONTAINER THAT HOLDS ITS TITLE, ITS PRICE AND ITS IMAGE.
    *
-   * Idée de Loïc, et les mesures la confirment. Tout ce que j'avais tenté avant
-   * était un critère GLOBAL — la plus grande image, le montant le plus haut, le
-   * plus gros corps de texte — et chacun se faisait battre par un élément de la
-   * page qui n'était pas le produit : bannière marketing, volet panier, carte de
-   * recommandation.
+   * Loïc's idea, and the measurements bear it out. Everything I had tried before
+   * was a GLOBAL criterion — the biggest image, the topmost amount, the largest
+   * body of text — and each was beaten by something on the page that was not the
+   * product: a marketing banner, the basket flyout, a recommendation card.
    *
-   * Or un bloc produit est un fait de STRUCTURE. Mesuré sur la fiche Amazon, en
-   * remontant depuis chaque montant jusqu'au premier ancêtre contenant une image :
+   * A product block, though, is a fact of STRUCTURE. Measured on the Amazon page,
+   * climbing from each amount to the first ancestor containing an image:
    *
-   *   div#dp-container   1310x14871   53 images   63 prix   <- toute la page
-   *   div#ppd            1274x1947     9 images   40 prix
-   *   div#centerCol       463x1947     1 image    30 prix   <- titre = <title>
-   *   div.p13n-…faceout   165x411      1 image     1 prix   <- recommandation
+   *   div#dp-container   1310x14871   53 images   63 prices  <- the whole page
+   *   div#ppd            1274x1947     9 images   40 prices
+   *   div#centerCol       463x1947     1 image    30 prices  <- heading = <title>
+   *   div.p13n-…faceout   165x411      1 image     1 price   <- recommendation
    *
-   * Ni l'aire ni le nombre d'images ne séparent le produit d'une recommandation :
-   * elles ont le même profil. Ce qui les sépare, c'est le TITRE — le seul bloc
-   * dont l'en-tête est celui du document. On part donc de là, et on remonte juste
-   * assez : au premier ancêtre qui porte un prix, puis au premier qui porte une
-   * image. Le produit et ses attributs voyagent ensemble ; le reste de la page ne
-   * les suit pas.
+   * Neither area nor image count separates the product from a recommendation: they
+   * have the same profile. What separates them is the TITLE — the only block whose
+   * heading is the document's. So we start there and climb just enough: to the
+   * first ancestor carrying a price, then to the first carrying an image. A product
+   * and its attributes travel together; the rest of the page does not follow.
    */
 
-  // Un prix BARRÉ est un ancien prix, un prix conseillé, un prix de référence —
-  // jamais celui qu'on paie. Il précède souvent le vrai dans le DOM.
+  // A STRUCK-THROUGH price is a former price, a list price, a reference price —
+  // never the one you pay. It often precedes the real one in the DOM.
   function struckThrough(el) {
     if (el.closest('del, s')) return true;
     return (getComputedStyle(el).textDecorationLine || '').includes('line-through');
   }
 
-  /** Un montant est-il exploitable ici ? Rend {price, currency} ou null. */
+  /** Is there a usable amount here? Returns {price, currency} or null. */
   function amountAt(el) {
     if (inChrome(el) || struckThrough(el)) return null;
     const r = el.getBoundingClientRect();
@@ -371,7 +351,7 @@
       if (n.nodeType !== 3) continue;
       const txt = (n.nodeValue || '').replace(/\s+/g, ' ').trim();
       if (!txt || txt.length > 40) continue;
-      // « 72,04 €/mois » est une mensualité, pas le prix du produit.
+      // "72,04 €/mois" is a monthly instalment, not the product's price.
       if (PER_PERIOD.test(txt)) continue;
       const m = txt.match(PRICE_RE);
       if (!m) continue;
@@ -384,7 +364,7 @@
   }
   const PER_PERIOD = /\/\s*(?:mois|month|mo|an|year|yr)\b|par\s+mois|per\s+month/i;
 
-  /** La plus grande image de produit portée par cet élément, ou ''. */
+  /** The largest product image carried by this element, or ''. */
   function imageIn(el, minArea) {
     let best = '';
     let bestArea = 0;
@@ -394,8 +374,8 @@
       if (!r.width || !r.height) continue;
       const src = img.currentSrc || img.src;
       if (!src || src.startsWith('data:')) continue;
-      // Un SVG est un pictogramme (étoile, badge, logo) et annonce des
-      // dimensions arbitraires. Aucune boutique ne photographie en SVG.
+      // An SVG is a pictogram (star, badge, logo) and declares arbitrary
+      // dimensions. No shop photographs in SVG.
       if (/\.svg(?:[?#]|$)/i.test(src)) continue;
       const area = (img.naturalWidth || r.width) * (img.naturalHeight || r.height);
       if (area < minArea || area <= bestArea) continue;
@@ -406,23 +386,23 @@
   }
 
   /**
-   * LE BLOC PRODUIT : L'IMAGE ET LE PRIX SORTENT DU MÊME ENDROIT.
+   * THE PRODUCT BLOCK: THE IMAGE AND THE PRICE COME OUT OF THE SAME PLACE.
    *
-   * L'ancrage précédent partait du titre. Sur une page PANIER, le titre est
-   * l'en-tête « Le montant total de votre panier est de… », qui n'appartient à
-   * aucun article : en remontant depuis lui on atteignait le conteneur de tout le
-   * panier, d'où sortaient le prix du premier article et l'image du second.
-   * Mesuré sur un panier Apple à deux lignes : photo de l'iPhone, prix du
-   * MacBook. Une chimère — un produit qui n'existe pas — et c'est pire qu'un
-   * champ vide, parce que ça ne se voit pas.
+   * The previous anchor started from the title. On a BASKET page the title is the
+   * heading "Le montant total de votre panier est de…", which belongs to no line
+   * item: climbing from it reached the container of the whole basket, out of which
+   * came the first item's price and the second item's image. Measured on a
+   * two-line Apple bag: the iPhone's photo, the MacBook's price. A chimera — a
+   * product that does not exist — and that is worse than an empty field, because
+   * it does not show.
    *
-   * On part donc du PRIX, pas du titre, et on remonte jusqu'au premier ancêtre
-   * qui porte aussi une image : ce bloc est l'unité. L'image vient de lui. Le
-   * mélange devient impossible par construction, pas par vigilance.
+   * So we start from the PRICE, not the title, and climb to the first ancestor that
+   * also carries an image: that block is the unit. The image comes from it. Mixing
+   * becomes impossible by construction, not by vigilance.
    *
-   * Quand plusieurs blocs existent (un panier, une liste), on garde les plus
-   * INTÉRIEURS — sinon le conteneur qui les englobe tous serait lui-même un
-   * candidat — et on prend le premier dans l'ordre du document.
+   * When several blocks exist (a basket, a list), we keep the INNERMOST ones —
+   * otherwise the container enclosing them all would be a candidate itself — and
+   * take the first in document order.
    */
   function productRecords() {
     const found = new Map();
@@ -436,26 +416,26 @@
         break;
       }
     }
-    // On ne filtre PLUS les blocs englobants ici. « Garder les plus intérieurs »
-    // semblait évident et détruisait le bon : les pastilles de coloris et les
-    // cartes de recommandation sont elles aussi des blocs image+prix, et elles
-    // sont imbriquées DANS le bloc du produit — qui se faisait donc éliminer.
-    // C'est le titre qui tranche, plus bas, pas la profondeur.
+    // Enclosing blocks are NO LONGER filtered out here. "Keep the innermost"
+    // seemed obvious and destroyed the right one: colour swatches and
+    // recommendation cards are image+price blocks too, and they are nested INSIDE
+    // the product's block — which therefore got eliminated. It is the title that
+    // decides, further down, not depth.
     return [...found.keys()].map((el) => ({ el, amounts: found.get(el) }));
   }
 
   /**
-   * LE PRIX D'UN BLOC EST CELUI QUI S'Y RÉPÈTE.
+   * A BLOCK'S PRICE IS THE ONE THAT REPEATS INSIDE IT.
    *
-   * « Le premier montant rencontré » a tenu trois fois sur quatre, puis Amazon a
-   * inséré une offre d'occasion à 109,99 € avant sa buybox et on est reparti avec
-   * elle. Ses modules varient d'une charge à l'autre : aucune règle de position
-   * ne survit à ça.
+   * "The first amount encountered" held three runs out of four, then Amazon
+   * inserted a used offer at 109,99 € before its buybox and we walked away with
+   * that. Its modules vary from one load to the next: no positional rule survives
+   * that.
    *
-   * Mais une fiche RÉPÈTE son prix — buybox, libellé d'accessibilité, pastille de
-   * coloris, encart « autres vendeurs » : 169,99 € apparaît quatre fois sur cette
-   * page, l'offre parasite une seule. On prend donc le montant le plus fréquent,
-   * et l'ordre du document ne sert plus qu'à départager les ex æquo.
+   * But a product page REPEATS its price — buybox, screen-reader label, colour
+   * swatch, "other sellers" panel: 169,99 € appears four times on that page, the
+   * parasitic offer only once. So we take the most frequent amount, and document
+   * order now only breaks ties.
    */
   function pickAmount(list) {
     const tally = new Map();
@@ -470,12 +450,12 @@
   }
 
   /**
-   * L'en-tête d'un bloc, et à quel point il recoupe le `<title>` du document.
+   * A block's heading, and how far it overlaps the document's `<title>`.
    *
-   * Sur une fiche produit, le `<title>` EST le nom du produit : le recoupement
-   * vaut 1,00 pour le bon bloc et 0,00 pour les blocs sponsorisés. Sur une page
-   * panier, le `<title>` vaut « Panier » et ne recoupe rien — le score est nul
-   * partout, et c'est cette absence qui dit qu'on n'est pas sur une fiche.
+   * On a product page the `<title>` IS the product's name: the overlap is 1.00 for
+   * the right block and 0.00 for sponsored ones. On a basket page the `<title>` is
+   * "Panier" and overlaps nothing — the score is zero everywhere, and it is that
+   * absence which says we are not on a product page.
    */
   function headingOf(el, docWords) {
     const heads = [...el.querySelectorAll('h1,h2,h3,[role=heading]')].filter((h) => {
@@ -496,18 +476,17 @@
   }
 
   /**
-   * L'image du bloc, en remontant TANT QU'ON NE CROISE PAS UN AUTRE PRODUIT.
+   * The block's image, climbing AS LONG AS WE DO NOT CROSS ANOTHER PRODUCT.
    *
-   * Sur Amazon, le prix et le packshot vivent dans deux colonnes distinctes : le
-   * bloc du prix ne contient qu'une vignette de 100 px, le packshot est un cran
-   * au-dessus. Il faut donc pouvoir monter. Mais monter sans borne, c'est
-   * retomber sur la chimère du panier — on s'arrête dès que l'ancêtre engloberait
-   * un autre bloc produit.
+   * On Amazon the price and the packshot live in two separate columns: the price's
+   * block only holds a 100 px thumbnail, the packshot is one level up. So climbing
+   * has to be possible. But climbing without a bound lands back on the basket's
+   * chimera — we stop as soon as the ancestor would enclose another product block.
    */
   function imageFor(rec, records) {
-    // Seuls les blocs ÉTRANGERS arrêtent la montée. Un bloc imbriqué (une
-    // pastille de coloris) appartient au même produit, il n'a rien à bloquer ;
-    // un bloc voisin (l'autre article du panier) est justement le danger.
+    // Only FOREIGN blocks stop the climb. A nested block (a colour swatch) belongs
+    // to the same product and has nothing to block; a sibling block (the basket's
+    // other line) is precisely the danger.
     const others = records
       .filter((r) => r.el !== rec.el && !rec.el.contains(r.el) && !r.el.contains(rec.el))
       .map((r) => r.el);
@@ -519,15 +498,15 @@
       if (!up || up === document.body || others.some((o) => up.contains(o))) break;
       n = up;
     }
-    // Aucun packshot : la vignette du bloc lui-même fera l'affaire (panier).
+    // No packshot: the block's own thumbnail will do (basket).
     return imageIn(rec.el, SMALL_AREA);
   }
 
   /**
-   * Décrit un bloc comme un produit à part entière. Chaque article d'un panier
-   * porte un lien vers sa fiche : c'est lui qu'on garde comme URL, sinon les
-   * deux articles d'une même page auraient la même adresse — donc le même
-   * identifiant — et le second écraserait le premier au stockage.
+   * Describes a block as a product in its own right. Every basket line carries a
+   * link to its own page: that is what we keep as the URL, otherwise two items from
+   * the same page would share an address — hence an identifier — and the second
+   * would overwrite the first in storage.
    */
   function recordProduct(r, records, docWords) {
     const money = pickAmount(r.amounts);
@@ -545,17 +524,16 @@
   }
 
   /**
-   * LES ARTICLES D'UNE LISTE SONT FRÈRES ; LES RECOMMANDATIONS AUSSI, AILLEURS.
+   * A LIST'S ITEMS ARE SIBLINGS; SO ARE THE RECOMMENDATIONS, ELSEWHERE.
    *
-   * Sur une page panier, les articles vivent dans un même conteneur (`<ol>` des
-   * lignes de panier) et le bloc « Recommandations pour vous » dans un autre.
-   * Rien ne les distingue par la forme : mêmes image, prix et titre. Ce qui les
-   * distingue, c'est l'APPARTENANCE — et le fait que le panier vienne avant.
+   * On a basket page the line items live in one container (the `<ol>` of basket
+   * rows) and the "Recommendations for you" block in another. Nothing tells them
+   * apart by shape: same image, price and title. What tells them apart is
+   * MEMBERSHIP — and the fact that the basket comes first.
    *
-   * On regroupe donc chaque bloc par son plus proche ancêtre qui en contient au
-   * moins deux (le conteneur de la liste), et on garde le groupe qui ouvre le
-   * document. Les recommandations sont toujours en dessous : elles arrivent
-   * après ce qu'on est venu voir.
+   * So each block is grouped by its nearest ancestor containing at least two of
+   * them (the list's container), and we keep the group that opens the document.
+   * Recommendations are always below: they come after what you came to see.
    */
   function firstGroup(recs) {
     if (recs.length < 2) return recs;
@@ -571,8 +549,8 @@
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(r);
     }
-    // `compareDocumentPosition` plutôt qu'une coordonnée : une position en pixels
-    // dépend de la mise en page, l'ordre du document non.
+    // `compareDocumentPosition` rather than a coordinate: a pixel position depends
+    // on layout, document order does not.
     let first = null;
     for (const [el, list] of groups) {
       if (!first) { first = { el, list }; continue; }
@@ -585,50 +563,49 @@
   function fromDom() {
     const records = productRecords();
     if (!records.length) {
-      // Aucun bloc image+prix : page sans produit lisible. On rend quand même un
-      // titre, les couches supérieures ont pu remplir le reste.
+      // No image+price block: a page with no readable product. We still return a
+      // title, the upper layers may have filled in the rest.
       const h1 = pickH1(contentRoot());
       const title = clean(h1 && h1.textContent) || clean(document.title).split(/\s[|–-]\s/)[0];
       return title ? { title, image: '', brand: '', desc: '', source: 'dom' } : null;
     }
 
     /**
-     * QUEL BLOC EST LE PRODUIT.
+     * WHICH BLOCK IS THE PRODUCT.
      *
-     * Sur une FICHE, le `<title>` du document est le nom du produit : le bloc qui
-     * le reprend est le bon, et les cartes sponsorisées ne le reprennent pas. On
-     * garde alors le plus PETIT des blocs qui le reprennent — les ancêtres le
-     * reprennent aussi, et le plus petit est celui qui serre le produit au plus
-     * près.
+     * On a PRODUCT PAGE the document's `<title>` is the product's name: the block
+     * that echoes it is the right one, and sponsored cards do not echo it. We then
+     * keep the SMALLEST of the blocks that do — the ancestors echo it too, and the
+     * smallest is the one hugging the product most closely.
      *
-     * Sur un PANIER, le `<title>` vaut « Panier » et personne ne le reprend. Ce
-     * score nul partout est le signal qu'on n'est pas sur une fiche : on prend
-     * alors le premier article, c'est-à-dire le bloc le plus intérieur qui vient
-     * en tête du document.
+     * On a BASKET the `<title>` is "Panier" and nobody echoes it. That
+     * zero-everywhere score is the signal that we are not on a product page: we
+     * then take the first item, that is, the innermost block coming first in
+     * document order.
      */
     const docWords = wordsOf(document.title);
     const scored = records.map((r) => ({ ...r, head: headingOf(r.el, docWords) }));
     const top = scored.reduce((a, b) => (b.head.score > a.head.score ? b : a), scored[0]);
 
     /**
-     * L'IMAGE ET LE PRIX NE VEULENT PAS LA MÊME LARGEUR.
+     * THE IMAGE AND THE PRICE DO NOT WANT THE SAME WIDTH.
      *
-     * Le bloc le plus SERRÉ autour du titre est le bon point de départ pour
-     * l'image — au-delà on ramasse la bannière marketing. Mais sur Amazon la
-     * buybox vit dans une AUTRE COLONNE que le titre : le prix payé est hors de
-     * ce bloc, et il n'y restait que le prix conseillé (179,99 € au lieu de
-     * 169,99 €).
+     * The block hugging the title most TIGHTLY is the right starting point for the
+     * image — beyond it we pick up the marketing banner. But on Amazon the buybox
+     * lives in a DIFFERENT COLUMN from the title: the price actually paid is
+     * outside that block, and all that remained inside was the list price
+     * (179,99 € instead of 169,99 €).
      *
-     * On dissocie donc : le bloc serré ancre l'image et le titre, et le prix se
-     * compte sur toute la RÉGION du produit — le plus grand bloc qui reprend
-     * encore le titre. Élargir ne dilue pas : les prix des recommandations sont
-     * tous différents, seul celui du produit se répète.
+     * So the two are decoupled: the tight block anchors the image and the title,
+     * and the price is counted over the product's whole REGION — the largest block
+     * that still echoes the title. Widening does not dilute: the recommendations'
+     * prices are all different, only the product's repeats.
      */
-    // Seuil, et pas « strictement positif » : sur un panier Apple, l'en-tête
-    // « Le montant total de votre Panier est de 118,00 € » partage UN mot avec le
-    // `<title>` (« Panier »), soit 0,17 — assez pour gagner, et on repartait avec
-    // le total du panier. On exige donc que la MOITIÉ des mots de l'en-tête
-    // viennent du titre du document : 1,00 sur une fiche produit, 0,17 ici.
+    // A threshold, and not "strictly positive": on an Apple bag the heading "Le
+    // montant total de votre Panier est de 118,00 €" shares ONE word with the
+    // `<title>` ("Panier"), i.e. 0.17 — enough to win, and we walked away with the
+    // bag's total. So we require HALF the heading's words to come from the
+    // document's title: 1.00 on a product page, 0.17 here.
     const MATCH = 0.5;
     let rec;
     let region;
@@ -642,10 +619,10 @@
       const inner = scored.filter((r) => !scored.some((o) => o !== r && r.el.contains(o.el)));
       rec = inner[0] ?? scored[0];
       region = rec;
-      // Page de type LISTE (un panier) : chaque bloc est un produit complet.
-      // Mais une page panier porte AUSSI un bloc « Recommandations pour vous »,
-      // dont les cartes ont exactement la même forme — on en avait enregistré
-      // cinq au lieu de deux. On ne garde donc qu'un seul GROUPE (cf. `groupOf`).
+      // A LIST-shaped page (a basket): every block is a complete product. But a
+      // basket page ALSO carries a "Recommendations for you" block whose cards have
+      // exactly the same shape — we once saved five items instead of two. So only
+      // one GROUP is kept (see `firstGroup`).
       const group = firstGroup(inner);
       products = group.length > 1 ? group.map((r) => recordProduct(r, records, docWords)) : null;
     }
@@ -668,7 +645,7 @@
     };
   }
 
-  // ---------- URL canonique, sans tracking ----------
+  // ---------- Canonical URL, tracking stripped ----------
   const STRIP = /^(utm_|gclid|fbclid|msclkid|mc_|_ga|ref|ref_|tag|source|spm|cm_|psc|th|smid|linkCode|creative|camp)/i;
   function canonical() {
     const raw = meta('link[rel="canonical"]', 'href') || meta('meta[property="og:url"]') || location.href;
@@ -682,7 +659,7 @@
     }
   }
 
-  // ---------- Fusion : on part du plus fiable et on complète ----------
+  // ---------- Merge: start from the most reliable layer and fill in ----------
   const layers = [fromJsonLd(), fromMicrodata(), fromMeta(), fromDom()].filter(Boolean);
   if (!layers.length) return null;
 
@@ -699,12 +676,12 @@
     }
   }
   out.source = sources.join('+');
-  // La fusion ne connaît que les champs d'un produit unique : la liste des
-  // articles d'une page-panier se rattache à part, sinon elle serait perdue.
+  // The merge only knows about a single product's fields: a basket page's list of
+  // items is attached separately, otherwise it would be lost.
   const domLayer = layers.find((l) => l.source === 'dom');
   if (domLayer?.products?.length > 1) out.products = domLayer.products;
   if (!out.title) return null;
-  // Forme de sortie stable, même quand une couche n'a rien donné.
+  // A stable output shape, even when a layer gave nothing.
   for (const k of ['image', 'brand', 'desc', 'currency']) out[k] = out[k] || '';
   out.price = typeof out.price === 'number' ? out.price : null;
   if (!out.currency && out.price != null) out.currency = sniffCurrency(document.body.innerText.slice(0, 4000));

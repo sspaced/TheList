@@ -4,9 +4,9 @@ import { toast } from './toast.js';
 import { makeQuote, putMedia } from './media.js';
 import { initI18n, t } from './i18n.js';
 
-// Les textes du toast partent d'ici : la fonction injectée dans la page ne peut
-// rien importer, elle reçoit du texte déjà traduit. L'init est paresseuse et
-// mémorisée — le service worker est réveillé puis tué à chaque ajout.
+// The toast's copy originates here: the function injected into the page can
+// import nothing, so it receives text already translated. Init is lazy and
+// memoised — the service worker is woken then killed around every save.
 let i18nReady = null;
 const ready = () => (i18nReady ||= initI18n().catch(() => {}));
 
@@ -22,8 +22,8 @@ async function badge(tabId, text, color) {
   } catch {}
 }
 
-// getContexts() évite la permission "tabs" (qui afficherait un avertissement
-// "lire votre historique") juste pour retrouver un onglet déjà ouvert.
+// getContexts() avoids needing the "tabs" permission — which would show a "read
+// your browsing history" warning — just to find an already-open tab.
 async function openWishlist() {
   try {
     const ctxs = await chrome.runtime.getContexts({ contextTypes: ['TAB'], documentUrls: [WISHLIST_URL] });
@@ -37,24 +37,24 @@ async function openWishlist() {
   await chrome.tabs.create({ url: WISHLIST_URL });
 }
 
-// Le clic = l'ajout. C'est le seul geste : pas de popup intermédiaire.
+// A click IS the save. That is the only gesture: no intermediate popup.
 /**
- * LE GESTE DÉPEND DE CE QUI EST SÉLECTIONNÉ.
+ * THE GESTURE DEPENDS ON WHAT IS SELECTED.
  *
- * Un même raccourci pour deux intentions, et c'est la page qui tranche : du
- * texte surligné veut dire « garde ce passage », rien de surligné veut dire
- * « garde ce produit ». On n'a donc qu'une combinaison à retenir, et le cas où
- * l'on se trompe n'existe pas — on ne surligne pas un paragraphe par accident.
+ * One shortcut for two intentions, and the page decides between them: text
+ * highlighted means "keep this passage", nothing highlighted means "keep this
+ * product". So there is a single combination to remember, and the case where you
+ * get it wrong does not exist — nobody highlights a paragraph by accident.
  *
- * `⌥⇧S` reste : quand on veut le passage sans ambiguïté, ou quand la sélection
- * risque de sauter.
+ * `⌥S` remains: for when you want the passage unambiguously, or when the
+ * selection is at risk of being lost.
  */
 async function addFromTab(tab) {
   const tabId = tab?.id;
   if (!tabId || !/^https?:/i.test(tab.url || '')) return badge(tabId, '×', '#cc0000');
 
-  // On garde la lecture : `saveQuote` en a besoin pour le titre et l'URL, et la
-  // refaire serait une seconde injection dans la page pour rien.
+  // We keep the read: `saveQuote` needs it for the title and the URL, and doing
+  // it again would mean a second injection into the page for nothing.
   const page = await readSelection(tabId);
   const selected = page?.text?.trim();
   if (selected) return saveQuote(tab, selected, page);
@@ -84,15 +84,15 @@ async function addFromTab(tab) {
   const settings = await getSettings();
 
   /**
-   * UNE PAGE PEUT PORTER PLUSIEURS PRODUITS.
+   * A PAGE CAN CARRY SEVERAL PRODUCTS.
    *
-   * `extract.js` ne rend une liste que sur une page de type panier — jamais sur
-   * une fiche, où les blocs voisins sont des recommandations qu'il ne faut
-   * surtout pas enregistrer. Ici on se contente de la suivre.
+   * `extract.js` only returns a list on a basket-like page — never on a product
+   * page, where the neighbouring blocks are recommendations that must on no
+   * account be saved. Here we simply follow it.
    *
-   * Chaque article porte SON URL (le lien de sa ligne) : sans ça, deux articles
-   * de la même page auraient le même identifiant et le second écraserait le
-   * premier — on aurait ajouté deux choses pour n'en garder qu'une.
+   * Each item carries ITS OWN URL (its row's link): without that, two items from
+   * the same page would share an identifier and the second would overwrite the
+   * first — two things saved to keep only one.
    */
   const list = Array.isArray(product.products) && product.products.length > 1 ? product.products : [product];
   let saved = 0;
@@ -102,8 +102,8 @@ async function addFromTab(tab) {
     const res = await categorize(src, settings);
     error = res.error || error;
     try {
-      // `Date.now() + saved` : l'horodatage ordonne la grille, et deux articles
-      // enregistrés dans la même milliseconde se seraient marché dessus.
+      // `Date.now() + saved`: the timestamp orders the grid, and two items saved
+      // within the same millisecond would have collided.
       await putItem(makeItem(src, res.category, Date.now() + saved));
       saved++;
     } catch (e) {
@@ -125,16 +125,16 @@ async function addFromTab(tab) {
 chrome.action.onClicked.addListener(addFromTab);
 
 /**
- * ENREGISTRER UN PASSAGE.
+ * SAVING A PASSAGE.
  *
- * Deux chemins, et ils n'obtiennent pas le texte de la même façon :
- *   - le MENU CONTEXTUEL le reçoit tout cuit dans `info.selectionText` ;
- *   - le RACCOURCI ne reçoit rien — une commande clavier ne sait pas ce qui est
- *     sélectionné — il faut donc aller le lire dans la page.
+ * Two paths, and they do not obtain the text the same way:
+ *   - the CONTEXT MENU receives it ready-made in `info.selectionText`;
+ *   - the SHORTCUT receives nothing — a keyboard command does not know what is
+ *     selected — so the text has to be read from the page.
  *
- * Le titre et l'URL viennent de la page dans les deux cas : sans eux, un extrait
- * de trois phrases n'a plus de provenance, et une citation sans source ne vaut
- * pas grand-chose.
+ * The title and URL come from the page in both cases: without them a
+ * three-sentence excerpt has no provenance, and a quote without a source is
+ * worth very little.
  */
 async function readSelection(tabId) {
   try {
@@ -162,9 +162,9 @@ async function saveQuote(tab, selectionText, known) {
   await ready();
 
   const page = known ?? (await readSelection(tabId));
-  // Le texte du menu contextuel fait foi : Chrome le fournit tel que
-  // l'utilisateur l'a surligné, alors que relire la sélection depuis la page
-  // peut arriver après qu'un clic l'a effacée.
+  // The context menu's text wins: Chrome hands it over exactly as the user
+  // highlighted it, whereas re-reading the selection from the page can happen
+  // after a click has already cleared it.
   const text = (selectionText || page?.text || '').trim();
   if (!text) {
     toast(tabId, { title: t('toastNoSelection'), kind: 'warn' });
@@ -194,16 +194,16 @@ async function saveQuote(tab, selectionText, known) {
 }
 
 /**
- * Les entrées du menu contextuel, reposées à CHAQUE réveil du service worker et
- * pas seulement à l'installation.
+ * The context-menu entries, re-registered on EVERY service-worker wake-up and not
+ * only on install.
  *
- * `onInstalled` ne se déclenche qu'une fois ; si le worker a échoué à ce
- * moment-là — une erreur d'import, une version cassée — les entrées n'existent
- * jamais et rien ne le dit. `removeAll` d'abord rend l'opération idempotente,
- * donc la répéter ne coûte rien.
+ * `onInstalled` fires once; if the worker failed at that moment — a bad import, a
+ * broken version — the entries never exist and nothing says so. Calling
+ * `removeAll` first makes the operation idempotent, so repeating it costs
+ * nothing.
  *
- * Les libellés sont figés à la création : Chrome les mémorise, ils ne suivront
- * un changement de langue qu'au réveil suivant.
+ * The labels are frozen at creation time: Chrome memorises them, so they only
+ * follow a language change on the next wake-up.
  */
 async function installMenus() {
   await ready();

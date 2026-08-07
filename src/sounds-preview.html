@@ -5,7 +5,7 @@
     <title>TheList — sons</title>
     <link rel="stylesheet" href="wishlist.css" />
     <style>
-      /* Page d'atelier, hors du produit : elle n'a pas à en suivre la contrainte
+      /* A workshop page, outside the product: it does not have to follow its
          « quatre images par ligne ». */
       body {
         padding: 12px;
@@ -55,21 +55,21 @@
   <body>
     <h1>SONS DISPONIBLES</h1>
     <p>
-      Écoute, puis dis-moi lesquels affecter à quoi. Ce qui est en gras est ce qui
-      est branché aujourd'hui.
+      Listen, then tell me which to assign to what. What is in bold is what is
+      wired today.
     </p>
     <div id="list"></div>
     <script type="module">
       import { sounds, play, setEnabled, setVolume } from './vendor/cuelume/index.js';
 
-      // La page d'audition ignore le réglage « muet » du produit : on vient ici
-      // précisément pour entendre.
+      // The audition page ignores the product's "muted" setting: you come here
+      // precisely to hear.
       setEnabled(true);
       setVolume(0.9);
 
-      /** Ce qui est câblé aujourd'hui, pour situer les candidats. */
+      /** What is wired today, to place the candidates. */
       const USED = {
-        tick: 'sélection dans le menu',
+        tick: 'menu selection',
         press: 'retirer un article (croix)',
         toggle: 'interrupteur de son',
       };

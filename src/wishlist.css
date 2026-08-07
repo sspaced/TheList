@@ -1,14 +1,13 @@
-/* Une grille d'images avec leur prix, et rien d'autre. Tout ce qui n'est pas le
-   produit a été retiré : barre, recherche, tri, catégories, réglages, bouton de
-   suppression. Ce qui reviendra reviendra à la demande. */
+/* A grid of images with their price, and nothing else. Everything that is not the
+   product was stripped out; what came back, came back on request. */
 
 * {
   box-sizing: border-box;
 }
 
-/* Aucune barre de défilement, nulle part. Le contenu défile toujours — molette,
-   trackpad, clavier — mais rien ne s'affiche : la page n'a que des traits noirs
-   de 1 px, une barre y était le seul élément à ne pas suivre cette règle. */
+/* No scrollbar, anywhere. Content still scrolls — wheel, trackpad, keyboard — but
+   nothing is drawn: the page has only 1 px black rules, and a scrollbar was the
+   one element not following that rule. */
 ::-webkit-scrollbar {
   display: none;
 }
@@ -22,25 +21,24 @@ body {
 }
 
 body {
-  /* 40 px de barre + 4 px d'air avant la première rangée d'images. */
+  /* 40 px of bar + 4 px of air before the first row of images. */
   padding: 44px 4px 4px;
-  /* La page elle-même ne défile PAS : c'est la grille qui défile, à l'intérieur.
-     Sinon la barre s'accroche au bord de la fenêtre, par-dessus les tuiles et
-     hors du cadre de 4 px. Ici elle longe le bord droit de la grille. */
+  /* The page itself does NOT scroll: the grid scrolls, inside it. Otherwise the
+     scroll region latches onto the window edge, over the tiles and outside the
+     4 px frame. */
   height: 100vh;
   overflow: hidden;
 }
 
-/* Bandeau collé au bord haut et aux deux bords latéraux : `fixed` avec
-   `left/right: 0` l'affranchit du padding du body, sinon il resterait 4 px en
-   retrait des côtés. */
+/* Bar pinned to the top edge and both sides: `fixed` with `left/right: 0` frees
+   it from the body's padding, which would otherwise inset it by 4 px. */
 .topbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  /* `box-sizing: border-box` : les 40 px incluent les bordures, la barre occupe
-     donc exactement 40 px et le padding du body n'a pas à s'y ajuster. */
+  /* `box-sizing: border-box`: the 40 px include the borders, so the bar occupies
+     exactly 40 px and the body's padding needs no adjusting. */
   height: 40px;
   background: #fff;
   border: 1px solid #000;
@@ -52,9 +50,9 @@ body {
   padding: 0 4px;
 }
 
-/* Séparateur : un filet de 1 px qui NE touche ni le haut ni le bas de la bande.
-   Hauteur fixe et centrage par le flex parent — 20 px dans une bande de 40 px,
-   donc 10 px d'air de chaque côté. */
+/* Divider: a 1 px rule that touches NEITHER the top nor the bottom of the bar.
+   Fixed height, centred by the flex parent — 20 px inside a 40 px bar, so 10 px of
+   air on each side. */
 .sep {
   width: 1px;
   height: 20px;
@@ -63,9 +61,9 @@ body {
   flex: none;
 }
 
-/* Le champ de recherche : même vocabulaire que les boutons — trait noir de 1 px,
-   angles vifs, monospace. Largeur fixe : en `flex: 1` il repousserait le total
-   contre les boutons de droite et la bande respirerait moins bien. */
+/* The search field: same vocabulary as the buttons — 1 px black rule, sharp
+   corners, monospace. Fixed width: at `flex: 1` it would push the total against
+   the right-hand buttons and the bar would breathe less. */
 .q {
   width: 220px;
   height: 26px;
@@ -74,7 +72,7 @@ body {
   background: #fff;
   color: #000;
   font: inherit;
-  /* Chrome dessine sa propre croix d'effacement, ronde et grise : elle jure. */
+  /* Chrome draws its own clear button, round and grey: it clashes. */
   appearance: none;
 }
 
@@ -95,26 +93,23 @@ body {
   font-weight: 700;
 }
 
-/* Ce qui n'entre pas dans le total le dit, en retrait. Un total qui tait ce
-   qu'il omet est un total faux. */
+/* Whatever is left out of the total says so, set back. A total that hides what it
+   omits is a wrong total. */
 .total .out {
   font-weight: 400;
   color: #777;
 }
 
-/* `margin-left: auto` le pousse à l'extrémité droite de la bande, quelle que
-   soit la largeur du total. Coupé, la note est barrée — pas grisée : le gris
-   dirait « indisponible », or le bouton reste actionnable. */
-/* Le bloc des raccourcis est poussé à droite ; le bouton muet le suit, collé
-   au bord. `margin-left: auto` ne s'applique donc qu'au PREMIER des deux. */
+/* The shortcuts block is pushed right; the mute button follows it, against the
+   edge. `margin-left: auto` therefore applies only to the FIRST of the two. */
 .dd.right {
   margin-left: auto;
 }
 
-/* Deux blocs poussés à droite : seul le PREMIER prend `margin-left: auto`,
-   sinon le second s'écarterait du premier jusqu'à l'autre bout. Sélecteur plus
-   spécifique, et placé après — à spécificité égale, c'est la dernière règle qui
-   gagne, et j'ai déjà perdu une bordure sur cet oubli. */
+/* Two blocks pushed right: only the FIRST takes `margin-left: auto`, otherwise
+   the second would drift away from the first all the way across. A more specific
+   selector, placed after — at equal specificity the last rule wins, and a border
+   was already lost to that oversight once. */
 .dd.right + .dd.right {
   margin-left: 4px;
 }
@@ -124,8 +119,8 @@ body {
   margin-left: 4px;
 }
 
-/* Un panneau ancré à droite déborderait de la fenêtre s'il s'ouvrait vers la
-   droite : il s'aligne donc sur le bord droit de son bouton. */
+/* A panel anchored on the right would overflow the window if it opened rightward,
+   so it aligns on its button's right edge instead. */
 .dd.right .dd-panel {
   left: auto;
   right: 0;
@@ -147,7 +142,7 @@ body {
   border-top: 1px solid #e6e6e6;
 }
 
-/* Le raccourci lui-même : encadré, comme une touche. */
+/* The shortcut itself: boxed, like a key. */
 .keys-combo {
   border: 1px solid #000;
   padding: 1px 5px;
@@ -160,12 +155,12 @@ body {
   color: #999;
 }
 
-/* Trait noir plein au-dessus : les lignes du dessus sont de l'INFORMATION,
-   celle-ci est une ACTION. Les filets gris clair qui séparent les raccourcis ne
-   suffisaient pas à marquer ce changement de nature.
-   DEUX classes dans le sélecteur, et ce n'est pas décoratif : `.dd-opt` remet
-   `border: 0` plus bas dans cette feuille, et à spécificité égale c'est la
-   dernière règle qui gagne — la bordure était effacée aussitôt posée. */
+/* A solid black rule above: the lines above are INFORMATION, this one is an
+   ACTION. The light grey rules separating the shortcuts were not enough to mark
+   that change of nature.
+   TWO classes in the selector, and that is not decorative: `.dd-opt` resets
+   `border: 0` further down this sheet, and at equal specificity the last rule
+   wins — the border was erased as soon as it was set. */
 .dd-opt.keys-edit {
   border-top: 1px solid #000;
 }
@@ -196,49 +191,46 @@ body {
   text-decoration: line-through;
 }
 
-/* ---------- Menu déroulant maison ----------
-   Même vocabulaire que les tuiles : trait noir de 1 px, fond blanc, angles
-   vifs, monospace. Le survol INVERSE (noir sur blanc → blanc sur noir) plutôt
-   que de teinter : c'est le seul geste graphique de la page, il doit rester net. */
+/* ---------- Home-made dropdown ----------
+   Same vocabulary as the tiles: 1 px black rule, white ground, sharp corners,
+   monospace. Hover INVERTS (black on white → white on black) rather than
+   tinting: it is the page's only graphic gesture, it has to stay crisp. */
 .dd {
   position: relative;
 }
 
-/* Un peu d'air entre le sélecteur de section et le filtre de catégories : ils
-   se lisent de gauche à droite, du plus général au plus précis. */
+/* A little air between the section picker and the category filter: they read
+   left to right, from the broadest to the most specific. */
 #section + .dd {
   margin-left: 4px;
 }
 
-/* ---------- Tuile « passage » ----------
-   Une citation n'a pas d'image : c'est le texte qui occupe le carré. Il est
-   tronqué proprement plutôt que rogné, et la ligne du bas garde la même forme
-   que celle d'un produit — le domaine à gauche, la date à droite. */
+/* ---------- "Passage" tile ----------
+   A quote has no image: the text fills the square. The bottom line keeps the same
+   shape as a product's. */
 .quote {
-  /* Calé sur les quatre bords du cadre plutôt qu'en `height: 100%` : la tuile
-     tient sa hauteur d'un `aspect-ratio`, sans hauteur explicite à laquelle un
-     pourcentage puisse se référer. Le texte débordait donc au lieu de défiler. */
+  /* Pinned to the frame's four edges rather than `height: 100%`: the tile takes
+     its height from an `aspect-ratio`, with no explicit height for a percentage
+     to refer to. The text therefore overflowed instead of scrolling. */
   position: absolute;
-  /* Le texte commence SOUS la croix : elle occupe 22 px à 4 px du bord, donc son
-     bas est à 26 px, et on laisse 4 px d'air. Sans ça, les premières lignes
-     passaient derrière le bouton. 29 et non 30 : la croix est posée sur la
-     TUILE, la citation à l'intérieur du cadre, dont la bordure de 1 px décale
-     tout ce qu'il contient. */
+  /* The text starts BELOW the cross: it takes 22 px at 4 px from the edge, so its
+     bottom sits at 26 px, and 4 px of air is left. Without this the first lines
+     ran behind the button. 29 and not 30: the cross is placed on the TILE, the
+     quote inside the frame, whose 1 px border offsets everything it holds. */
   top: 29px;
   right: 0;
   bottom: 0;
   left: 0;
   padding: 0 12px 12px;
-  /* Le passage DÉFILE dans la tuile plutôt que d'être tronqué : on enregistre un
-     texte pour le relire, pas pour en voir les douze premières lignes. La barre
-     est fine et discrète — c'est du texte, pas un panneau. */
+  /* The passage SCROLLS inside the tile rather than being clipped: you save a
+     text to read it again, not to see its first twelve lines. */
   overflow-y: auto;
   background: #fff;
   font-size: 12px;
   line-height: 1.45;
-  /* Les sauts de ligne du document d'origine comptent : `pre-wrap` les respecte
-     tout en laissant les lignes trop longues se replier. Sans lui, dix
-     paragraphes s'affichaient en un seul pavé. */
+  /* The source document's line breaks matter: `pre-wrap` honours them while still
+     letting over-long lines wrap. Without it, ten paragraphs rendered as one
+     compact block. */
   white-space: pre-wrap;
 }
 
@@ -274,8 +266,8 @@ body {
   line-height: 1;
 }
 
-/* Le panneau chevauche la grille : il est au-dessus (z-index) et sort du flux,
-   sinon l'ouverture pousserait toutes les images vers le bas. */
+/* The panel overlaps the grid: it sits above (z-index) and out of flow, otherwise
+   opening it would push every image down. */
 .dd-panel {
   position: absolute;
   top: calc(100% + 4px);
@@ -310,8 +302,8 @@ body {
   outline: none;
 }
 
-/* La sélection courante se marque par un trait à gauche, pas par une couleur :
-   la page n'en a aucune. */
+/* The current selection is marked by a rule on the left, not by a colour: the
+   page has none. */
 .dd-opt[aria-selected='true'] {
   box-shadow: inset 3px 0 0 #000;
   font-weight: 700;
@@ -332,16 +324,16 @@ body {
 
 .grid {
   display: grid;
-  /* `minmax(0, 1fr)` et non `1fr` : `1fr` vaut `minmax(auto, 1fr)`, donc un
-     contenu insécable — ici un titre de document en `nowrap` — impose sa largeur
-     intrinsèque et fait déborder sa colonne. Les tuiles cessaient d'être carrées
-     et le texte, ayant la place de s'étaler, ne défilait plus. */
+  /* `minmax(0, 1fr)` and not `1fr`: `1fr` means `minmax(auto, 1fr)`, so
+     unbreakable content — here a `nowrap` document title — imposes its intrinsic
+     width and overflows its column. The tiles stopped being square and the text,
+     now with room to spread, no longer scrolled. */
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   height: 100%;
   overflow-y: auto;
-  /* La grille se remplit par le haut : sans ça, une seule rangée s'étirerait sur
-     toute la hauteur disponible. */
+  /* The grid fills from the top: without this a single row would stretch over the
+     whole available height. */
   align-content: start;
 }
 
@@ -349,15 +341,15 @@ body {
   position: relative;
 }
 
-/* La vignette EST le lien : cliquer l'image ouvre la fiche produit. */
+/* The thumbnail IS the link: clicking the image opens the product page. */
 .link {
   display: block;
   text-decoration: none;
   color: inherit;
 }
 
-/* La croix se pose SUR l'image, à 4 px de ses bords. Fond blanc opaque : sans
-   lui elle se perdrait dans une photo claire. */
+/* The cross sits ON the image, 4 px from its edges. Opaque white ground: without
+   it, it would disappear into a pale photo. */
 .del {
   position: absolute;
   top: 4px;
@@ -377,8 +369,8 @@ body {
   cursor: pointer;
 }
 
-/* Même inversion que les autres boutons de la page : c'est le seul geste
-   graphique du thème, il doit être le même partout. */
+/* Same inversion as every other button on the page: it is the theme's only
+   graphic gesture, it must be identical everywhere. */
 .del:hover {
   background: #000;
   color: #fff;
@@ -392,9 +384,9 @@ body {
   border: 1px solid #000;
 }
 
-/* Le gris de fond n'est là que pour une image qui manque. Un passage occupe déjà
-   tout le cadre, mais son texte commence 29 px plus bas pour laisser passer la
-   croix — et cette bande de gris apparaissait au-dessus. */
+/* The grey ground only exists for a missing image. A passage already fills the
+   frame, but its text starts 29 px lower to clear the cross — and that band of
+   grey showed above it. */
 .shot-quote {
   background: #fff;
 }
@@ -406,7 +398,7 @@ body {
   display: block;
 }
 
-/* L'URL fautive, à même la tuile : un échec doit se lire, pas se deviner. */
+/* The offending URL, right on the tile: a failure should be read, not guessed. */
 .broken {
   padding: 8px;
   font-size: 9px;
@@ -417,12 +409,9 @@ body {
   height: 100%;
 }
 
-/* Un média porte une ligne de plus que le produit : le titre du document. Sans
-   lui, un passage sorti de son article n'a plus de nom — le domaine seul ne dit
-   pas de QUOI il s'agit. */
-/* Domaine, titre et prix sur UNE ligne, dans cet ordre. Le titre occupe le
-   milieu et prend l'espace restant : c'est lui qui se tronque, le domaine et le
-   prix étant courts et déjà tenus par leur propre troncature. */
+/* Hostname, title and price on ONE line, in that order. The title takes the
+   middle and whatever space is left: it is the one that truncates, the hostname
+   and the price being short and already held by their own truncation. */
 .ptitle {
   font-weight: 700;
   min-width: 0;
@@ -432,9 +421,8 @@ body {
   white-space: nowrap;
 }
 
-/* Un passage : domaine à gauche, titre au milieu — même disposition qu'un
-   produit, à ceci près qu'il n'y a pas de prix à droite. Le titre prend tout ce
-   qui reste, et c'est lui qui se tronque. */
+/* A passage: hostname left, title centred — the same layout as a product, except
+   there is no price on the right. */
 .mtitle {
   font-weight: 700;
   min-width: 0;
@@ -444,31 +432,29 @@ body {
   white-space: nowrap;
 }
 
-/* UNE GRILLE, PAS UNE RANGÉE FLEX.
-   En flex, le titre se centrait dans l'espace RESTANT entre le domaine et le
-   prix — deux éléments de largeurs différentes — il n'était donc jamais au
-   centre de la carte. Trois colonnes dont les latérales valent chacune `1fr` :
-   elles sont égales par construction, et la colonne du milieu tombe exactement
-   au centre, quelles que soient les longueurs de part et d'autre.
-   `minmax(0, …)` partout, sinon un contenu long refuse de se tronquer et
-   déborde la colonne — le même piège que sur la grille des tuiles. */
+/* A GRID, NOT A FLEX ROW.
+   In flex, the title centred itself in the space REMAINING between the hostname
+   and the price — two elements of differing widths — so it was never at the
+   centre of the card. Three columns whose outer two are each `1fr`: they are
+   equal by construction, and the middle column falls exactly at the centre
+   whatever the lengths on either side.
+   `minmax(0, …)` throughout, otherwise long content refuses to truncate and
+   overflows its column — the same trap as on the tile grid. */
 .info {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: baseline;
   gap: 8px;
-  /* Pas de bordure haute : celle du bas de l'image sert d'arête commune, sinon
-     les deux se cumulent et le trait fait 2 px au milieu de la tuile. */
+  /* No top border: the image's bottom border serves as the shared edge,
+     otherwise the two add up and the rule is 2 px thick mid-tile. */
   border: 1px solid #000;
   border-top: 0;
   padding: 8px;
 }
 
-/* Le nom de domaine peut être long (« boutique.machin-truc.co.uk ») : il peut
-   se rétrécir, mais après le titre — il sert de repère et se lit en premier. */
-/* Pas de `justify-self` : par défaut l'élément OCCUPE sa colonne, donc il se
-   tronque dedans. Avec `start`, il se dimensionne sur son contenu et déborde
-   sur la colonne voisine — le domaine passait par-dessus le titre. */
+/* No `justify-self`: by default the element OCCUPIES its column, so it truncates
+   inside it. With `start` it sizes to its content and overflows into the
+   neighbouring column — the hostname ran over the title. */
 .site {
   text-align: left;
   overflow: hidden;
@@ -482,22 +468,21 @@ body {
   white-space: nowrap;
 }
 
-/* Le prix descend souvent d'une lecture de page approximative : quand il
-   manque, la boîte reste (la grille ne doit pas se désaligner) et le dit. */
+/* The price often comes from an approximate reading of the page: when it is
+   missing the box stays — the grid must not fall out of alignment — and says so. */
 .price.none {
   color: #999;
 }
 
-/* ---------- Surlignage de la recherche ----------
-   Un arc-en-ciel POUSSIÉREUX : les teintes sont désaturées — du pastel, pas des
-   couleurs primaires — et un grain les recouvre. Le grain est un vrai bruit
-   (`feTurbulence` en SVG, encodé dans la feuille, aucun fichier), désaturé puis
-   mélangé en `multiply` : il assombrit par touches, comme le grain d'un
-   argentique, au lieu de poser un voile uniforme.
+/* ---------- Search highlight ----------
+   A DUSTY rainbow: the hues are desaturated — pastel, not primaries — and grain
+   covers them. The grain is real noise (`feTurbulence` in SVG, encoded in this
+   sheet, no file), desaturated then blended in `multiply`: it darkens in
+   specks, like the grain of film, instead of laying down a uniform veil.
 
-   Sur une page qui n'a que du noir et du blanc, c'est la seule couleur — donc
-   elle doit rester basse. Le texte, lui, ne change pas de couleur : il reste
-   noir et parfaitement lisible par-dessus. */
+   On a page that has only black and white, this is the only colour — so it must
+   stay quiet. The text does not change colour: it stays black and fully legible
+   on top. */
 mark {
   color: inherit;
   padding: 0 1px;
@@ -513,8 +498,8 @@ mark {
       rgba(176, 148, 200, 0.55)
     );
   background-blend-mode: multiply;
-  /* Une marque qui court sur deux lignes garde son fond et ses marges sur
-     chacune, au lieu d'un rectangle unique qui traverserait le vide. */
+  /* A mark running across two lines keeps its ground and padding on each, rather
+     than one rectangle spanning the gap. */
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }

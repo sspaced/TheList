@@ -48,6 +48,12 @@ async function preferred() {
   return LANGS.some((l) => l.code === nav) ? nav : FALLBACK;
 }
 
+/** The document's own language, so the browser knows what it is reading — it
+ *  drives hyphenation, spellcheck and how a screen reader pronounces the page. */
+function stamp() {
+  if (typeof document !== 'undefined') document.documentElement.lang = current;
+}
+
 export async function initI18n() {
   current = await preferred();
   // Both languages are loaded up front: they weigh under 2 KB and it makes
@@ -61,6 +67,7 @@ export async function initI18n() {
     resources: Object.fromEntries(bundles.map(([code, data]) => [code, { translation: data }])),
     interpolation: { escapeValue: false },
   });
+  stamp();
   return current;
 }
 
@@ -82,6 +89,7 @@ export async function setLang(code) {
   if (!LANGS.some((l) => l.code === code)) return;
   current = code;
   await i18next.changeLanguage(code);
+  stamp();
   try {
     await chrome.storage.local.set({ lang: code });
   } catch {}

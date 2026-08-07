@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>TheList</title>
@@ -7,17 +7,19 @@
   </head>
   <body>
     <div class="topbar">
-      <!-- Menu déroulant maison : un <select> ne se met pas à la charte (le
-           navigateur impose son propre panneau) et n'affiche pas les compteurs. -->
+      <!-- Home-made dropdown: a <select> cannot be styled to the theme (the
+           browser imposes its own panel) and cannot show the counters.
+           Every label below is left EMPTY on purpose: i18n paints them on load,
+           and a hard-coded fallback would flash the wrong language. -->
       <div class="dd" id="section">
         <button class="dd-btn" id="section-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
-          <span id="section-label">PRODUITS</span><span class="dd-caret" aria-hidden="true">▾</span>
+          <span id="section-label"></span><span class="dd-caret" aria-hidden="true">▾</span>
         </button>
         <div class="dd-panel" id="section-panel" role="listbox" hidden></div>
       </div>
       <div class="dd" id="cats">
         <button class="dd-btn" id="cats-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
-          <span id="cats-label">TOUT</span><span class="dd-caret" aria-hidden="true">▾</span>
+          <span id="cats-label"></span><span class="dd-caret" aria-hidden="true">▾</span>
         </button>
         <div class="dd-panel" id="cats-panel" role="listbox" hidden></div>
       </div>
@@ -27,15 +29,15 @@
       <span class="total" id="total"></span>
       <div class="dd right" id="lang">
         <button class="dd-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
-          <span id="lang-label">FR</span><span class="dd-caret" aria-hidden="true">▾</span>
+          <span id="lang-label"></span><span class="dd-caret" aria-hidden="true">▾</span>
         </button>
         <div class="dd-panel" id="lang-panel" role="listbox" hidden></div>
       </div>
       <div class="dd right" id="keys">
-        <button class="mute" id="keys-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Raccourcis clavier">⌘</button>
+        <button class="mute" id="keys-btn" type="button" aria-haspopup="true" aria-expanded="false">⌘</button>
         <div class="dd-panel wide" id="keys-panel" hidden></div>
       </div>
-      <button class="mute" id="mute" type="button" aria-pressed="false" title="Couper le son">♪</button>
+      <button class="mute" id="mute" type="button" aria-pressed="false">♪</button>
     </div>
     <main id="grid" class="grid"></main>
     <script type="module" src="wishlist.js"></script>
