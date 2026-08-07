@@ -49,15 +49,19 @@ async function openWishlist() {
  * `⌥S` remains: for when you want the passage unambiguously, or when the
  * selection is at risk of being lost.
  */
-async function addFromTab(tab) {
+async function addFromTab(tab, fromPick = false) {
   const tabId = tab?.id;
   if (!tabId || !/^https?:/i.test(tab.url || '')) return badge(tabId, '×', '#cc0000');
 
-  // We keep the read: `saveQuote` needs it for the title and the URL, and doing
-  // it again would mean a second injection into the page for nothing.
-  const page = await readSelection(tabId);
-  const selected = page?.text?.trim();
-  if (selected) return saveQuote(tab, selected, page);
+  // After a pick, the selection is not consulted: the user pointed at a product,
+  // and a stray highlight left over on the page must not turn that into a quote.
+  if (!fromPick) {
+    // We keep the read: `saveQuote` needs it for the title and the URL, and doing
+    // it again would mean a second injection into the page for nothing.
+    const page = await readSelection(tabId);
+    const selected = page?.text?.trim();
+    if (selected) return saveQuote(tab, selected, page);
+  }
 
   let product = null;
   try {
@@ -122,7 +126,52 @@ async function addFromTab(tab) {
   await badge(tabId, '✓', error ? '#cc0000' : '#000000');
 }
 
-chrome.action.onClicked.addListener(addFromTab);
+// `addListener(addFromTab)` would have handed Chrome's second argument straight
+// to `fromPick`. It is not one today, and one day it will be.
+chrome.action.onClicked.addListener((tab) => addFromTab(tab));
+
+/**
+ * PICK MODE: FOR PAGES THAT CARRY FORTY PRODUCTS.
+ *
+ * On a search page or a category page, `⌥A` had no chance: measured on Apple's
+ * results for "studio display", it read all 24 cards correctly and saved every
+ * one of them under the same link — 24 writes collapsing into one item whose
+ * contents were whichever card came last.
+ *
+ * Nothing on such a page says which card you meant, so we stop pretending: the
+ * pointer designates, the click confirms, and `extract.js` reads that block with
+ * the rules it already has. The interaction lives in `pick.js`, in the page,
+ * because the pointer is there.
+ *
+ * The click comes back as a MESSAGE rather than as the resolution of a promise
+ * held here: pointing takes seconds, and the service worker is free to die in the
+ * meantime — a message wakes it back up, an awaited promise would be lost with it.
+ */
+async function pickOn(tab) {
+  const tabId = tab?.id;
+  if (!tabId || !/^https?:/i.test(tab.url || '')) return badge(tabId, '×', '#cc0000');
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['src/pick.js'] });
+  } catch (e) {
+    await ready();
+    await setSettings({ lastError: `${t('toastFailed')} (${e.message})` });
+    toast(tabId, { title: t('toastFailed'), kind: 'error' });
+    await badge(tabId, '×', '#cc0000');
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  // An injected file cannot receive arguments, so `pick.js` asks for its copy.
+  // `return true` keeps the channel open for the asynchronous answer.
+  if (msg?.theList === 'pick-copy') {
+    ready().then(() => reply({ hint: t('pickHint') }));
+    return true;
+  }
+  if (msg?.theList === 'picked') {
+    addFromTab(sender.tab, true);
+  }
+  return false;
+});
 
 /**
  * SAVING A PASSAGE.
@@ -209,6 +258,7 @@ async function installMenus() {
   await ready();
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: 'add', title: t('menuAddProduct'), contexts: ['page'] });
+    chrome.contextMenus.create({ id: 'pick', title: t('menuPick'), contexts: ['page'] });
     chrome.contextMenus.create({ id: 'quote', title: t('menuSaveQuote'), contexts: ['selection'] });
     chrome.contextMenus.create({ id: 'open', title: t('menuOpen'), contexts: ['action', 'page'] });
   });
@@ -220,12 +270,17 @@ installMenus();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'add') addFromTab(tab);
+  if (info.menuItemId === 'pick') pickOn(tab);
   if (info.menuItemId === 'quote') saveQuote(tab, info.selectionText);
   if (info.menuItemId === 'open') openWishlist();
 });
 
 chrome.commands.onCommand.addListener(async (cmd, tab) => {
   if (cmd === 'open-wishlist') return openWishlist();
+  if (cmd === 'pick-product') {
+    const target = tab ?? (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+    return pickOn(target);
+  }
   if (cmd === 'save-quote') {
     const target = tab ?? (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     return saveQuote(target, '');

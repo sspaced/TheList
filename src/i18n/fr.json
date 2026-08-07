@@ -12,7 +12,8 @@
   "cmd": {
     "_execute_action": "Ajouter la page à TheList",
     "open-wishlist": "Ouvrir TheList",
-    "save-quote": "Enregistrer la sélection"
+    "save-quote": "Enregistrer la sélection",
+    "pick-product": "Choisir un produit sur la page"
   },
   "cat": {
     "fashion": "Mode",
@@ -52,5 +53,7 @@
   "sectionMedia": "MÉDIAS",
   "removeMedia": "Retirer des médias",
   "search": "RECHERCHER",
-  "undoDelete": "Annuler la dernière suppression"
+  "undoDelete": "Annuler la dernière suppression",
+  "pickHint": "Clique un produit · Échap pour annuler",
+  "menuPick": "Choisir un produit…"
 }

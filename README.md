@@ -15,6 +15,11 @@ page structure — never about class names.
 out of the *same* container. That is what prevents the classic chimera: one item's
 photo with another item's price.
 
+**When there is nothing to deduce, we ask.** A search page holds forty products,
+all structurally identical, and nothing on it says which one you meant — so `⌥P`
+lets you point at one and the reader reads that block. No heuristic pretends to
+choose, and no per-site list of "what a result card looks like" gets maintained.
+
 **Nothing is guessed in silence.** An image that fails to load shows its URL, a
 total that leaves items out says so, an unassigned shortcut displays as such. A
 silent failure costs more than a noisy one.
@@ -28,12 +33,15 @@ that does not help you find an object again has no place on screen.
 |---|---|
 | `⌥A` | Adds the product on the page. On a **basket** page, adds every line item — without the "recommended for you" block. |
 | `⌥S` | Saves the selected text along with its source. Also from the context menu. |
+| `⌥P` | **Pick** one product: the block under the pointer is outlined, a click saves it. For search pages and category grids. Esc or right-click leaves. |
 | `⌥L` | Opens the list. |
 
 - **Two sections**: products, and media (saved passages).
 - **Category filter** and **total in euros** of whatever is displayed.
 - **Categorisation** by a model through OpenRouter when a key is configured,
-  otherwise by keywords. A failure never blocks the save.
+  otherwise by a bilingual keyword lexicon. A failure never blocks the save. The
+  lexicon carries a revision: when it is fixed, already-stored items are
+  re-classified once, and what changed is reported rather than applied silently.
 - **French / English**, switchable live — the locale also drives amount formatting.
 - **Interface sounds**, synthesised, mutable in one click.
 
@@ -77,8 +85,9 @@ manifest.json
 src/
   background.js   service worker: saving, menus, shortcuts
   extract.js      reading a product page (injected on demand)
+  pick.js         pointing at one product in a grid (injected on demand)
   categorize.js   closed taxonomy, model with a keyword fallback
-  store.js        products (storage.sync)
+  store.js        products (storage.local)
   media.js        passages (storage.local)
   toast.js        visual feedback, injected into the page
   i18n.js         language loading

@@ -49,6 +49,12 @@
         "default": "Alt+S"
       },
       "description": "Enregistrer la sélection"
+    },
+    "pick-product": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Choisir un produit sur la page"
     }
   }
 }

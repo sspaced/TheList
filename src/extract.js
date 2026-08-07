@@ -3,6 +3,27 @@
 (() => {
   const clean = (s) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '');
 
+  /**
+   * A PICKED BLOCK NARROWS EVERYTHING BELOW.
+   *
+   * `pick.js` leaves the element the user pointed at here, in this extension's
+   * isolated world, which both injections share. When it is set, no guessing is
+   * left to do: the human already said which of the forty cards they meant.
+   *
+   * Read ONCE and cleared immediately. A scope left behind would silently narrow
+   * the next ordinary save, and nothing on screen would explain why the wrong
+   * product came out.
+   */
+  const PICKED = (() => {
+    const el = window.__theListPicked;
+    delete window.__theListPicked;
+    // `nodeType === 1` and not `instanceof Element`: a node coming from an iframe
+    // belongs to another realm and fails the `instanceof` of this one, which would
+    // silently drop the pick. It also keeps this readable by the offline suite,
+    // whose DOM has no `Element` global.
+    return el && el.nodeType === 1 && el.isConnected ? el : null;
+  })();
+
   const abs = (u) => {
     if (!u || typeof u !== 'string') return '';
     try {
@@ -164,7 +185,11 @@
 
   // ---------- 3. Microdata ----------
   function fromMicrodata() {
-    const scope = document.querySelector('[itemtype*="schema.org/Product" i]');
+    // Scoped to the picked block, and it may BE the block: a listing that marks up
+    // each card individually then gives an exact title and price, which beats
+    // anything read off the layout.
+    const SEL = '[itemtype*="schema.org/Product" i]';
+    const scope = (PICKED?.matches(SEL) && PICKED) || (PICKED ?? document).querySelector(SEL);
     if (!scope) return null;
     const prop = (name) => scope.querySelector(`[itemprop="${name}" i]`);
     const val = (el) => (el ? clean(el.getAttribute('content') || el.getAttribute('src') || el.textContent) : '');
@@ -217,14 +242,18 @@
     '[role=navigation]', '[role=banner]', '[role=contentinfo]',
     '[role=complementary]', '[role=dialog]', '[aria-modal=true]',
   ].join(',');
-  const inChrome = (el) => !!el.closest(CHROME);
+  // Pointing at a block outranks any landmark: a grid of results can perfectly
+  // well live inside an <aside>, and refusing to read it because of that would be
+  // overruling the only unambiguous signal on the page. So when something is
+  // picked, "not the content" simply means "outside the picked block".
+  const inChrome = (el) => (PICKED ? !PICKED.contains(el) : !!el.closest(CHROME));
 
   /**
    * The content area the page declares (`<main>` or `[role=main]`). When it exists
    * everything happens inside it: the Amazon product page declares a `[role=main]`
    * that the basket flyout is, by construction, outside of.
    */
-  const contentRoot = () => document.querySelector('main, [role=main]') || document.body;
+  const contentRoot = () => PICKED || document.querySelector('main, [role=main]') || document.body;
 
   /**
    * THE PACKSHOT IS AT THE TOP OF THE PAGE.
@@ -562,6 +591,39 @@
 
   function fromDom() {
     const records = productRecords();
+
+    /**
+     * A PICKED BLOCK IS EXACTLY ONE PRODUCT.
+     *
+     * No title match to look for — a search page's `<title>` is "Apple (FR)" and
+     * echoes nothing — and no list to build either: the branches below exist to
+     * decide something that has already been decided here.
+     *
+     * The image is taken from INSIDE the block and never by climbing. Climbing is
+     * what lets a basket line reach its packshot one level up, but on a grid the
+     * level up is the neighbouring card, and that is the chimera all over again.
+     * A card carries its own photo; if it does not, we would rather have none.
+     */
+    if (PICKED) {
+      const head = headingOf(PICKED, wordsOf(document.title));
+      const money = records.length
+        ? pickAmount(records.flatMap((r) => r.amounts))
+        : { price: null, currency: '' };
+      // Last resort, and a poor one — it drags the price along with the name — but
+      // still better than the document title, which is the LISTING's title.
+      const title = head.text || clean(PICKED.getAttribute('aria-label')) || clean(PICKED.textContent).slice(0, 120);
+      if (!title) return null;
+      return {
+        title,
+        image: imageIn(PICKED, BIG_AREA) || imageIn(PICKED, SMALL_AREA),
+        brand: '',
+        desc: '',
+        price: money.price,
+        currency: money.currency,
+        source: 'picked',
+      };
+    }
+
     if (!records.length) {
       // No image+price block: a page with no readable product. We still return a
       // title, the upper layers may have filled in the rest.
@@ -648,7 +710,16 @@
   // ---------- Canonical URL, tracking stripped ----------
   const STRIP = /^(utm_|gclid|fbclid|msclkid|mc_|_ga|ref|ref_|tag|source|spm|cm_|psc|th|smid|linkCode|creative|camp)/i;
   function canonical() {
-    const raw = meta('link[rel="canonical"]', 'href') || meta('meta[property="og:url"]') || location.href;
+    // A picked card links to its own product page, and that link is the item's
+    // address. The page's canonical URL is the LISTING: every card would share one
+    // identifier, so twenty-four saves would overwrite each other down to one item
+    // holding whichever card came last.
+    const own = PICKED
+      ? [...(PICKED.matches('a[href]') ? [PICKED] : []), ...PICKED.querySelectorAll('a[href]')]
+          .map((a) => abs(a.getAttribute('href')))
+          .find((h) => h && !h.endsWith('#'))
+      : '';
+    const raw = own || meta('link[rel="canonical"]', 'href') || meta('meta[property="og:url"]') || location.href;
     try {
       const u = new URL(raw, location.href);
       for (const k of [...u.searchParams.keys()]) if (STRIP.test(k)) u.searchParams.delete(k);
@@ -660,7 +731,13 @@
   }
 
   // ---------- Merge: start from the most reliable layer and fill in ----------
-  const layers = [fromJsonLd(), fromMicrodata(), fromMeta(), fromDom()].filter(Boolean);
+  // Scoped, the JSON-LD and OpenGraph layers are DROPPED: they describe the page,
+  // and on a listing page that means the listing — the exact source of the wrong
+  // product. Microdata stays because it is scoped to the block itself.
+  const layers = (PICKED
+    ? [fromMicrodata(), fromDom()]
+    : [fromJsonLd(), fromMicrodata(), fromMeta(), fromDom()]
+  ).filter(Boolean);
   if (!layers.length) return null;
 
   const out = { url: canonical(), site: location.hostname.replace(/^www\./, ''), source: '' };
