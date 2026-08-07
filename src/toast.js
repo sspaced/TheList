@@ -1,34 +1,33 @@
 /**
- * Le retour visuel de l'ajout — affiché SUR LA PAGE PRODUIT, pas dans la
- * wishlist.
+ * Visual feedback for a save — shown ON THE PRODUCT PAGE, not in the list.
  *
- * C'est là qu'est l'utilisateur au moment où il appuie sur le raccourci. Le
- * badge de l'icône (✓ / ? / ×) existait déjà mais il est minuscule, dans un coin,
- * et disparaît en 2,5 s : on peut ajouter dix articles sans jamais le voir. On le
- * garde quand même — il reste le seul retour possible sur les pages où Chrome
- * interdit toute injection (chrome://, Web Store, visionneuse PDF).
+ * That is where the user is when they press the shortcut. The icon badge
+ * (✓ / ? / ×) already existed but it is tiny, tucked in a corner, and gone in
+ * 2.5 s: you can save ten items without ever noticing it. We keep it anyway — it
+ * remains the only feedback possible on pages where Chrome forbids injection
+ * (chrome://, the Web Store, the PDF viewer).
  *
- * La fonction injectée est nécessairement AUTONOME : `executeScript` la
- * sérialise pour l'exécuter dans la page, elle ne peut donc rien capturer de ce
- * module. Tout ce dont elle a besoin arrive par `args`, textes traduits compris.
+ * The injected function is necessarily SELF-CONTAINED: `executeScript`
+ * serialises it to run inside the page, so it can capture nothing from this
+ * module. Everything it needs arrives through `args`, translated copy included.
  */
 
 /**
- * Rendu dans la page. Shadow DOM obligatoire : sans lui, la feuille de style du
- * marchand s'applique au toast — Amazon impose sa police, Apple ses marges — et
- * l'encart n'a plus aucune tenue. Le shadow root isole, dans les deux sens.
+ * Rendered inside the page. A shadow DOM is mandatory: without it the merchant's
+ * stylesheet applies to the toast — Amazon forces its font, Apple its margins —
+ * and the box loses all composure. The shadow root isolates, both ways.
  */
 function paint({ title, kind }) {
   const ID = '__wishlist_toast__';
-  // La préférence se lit DANS la page, pas dans le service worker : c'est le
-  // réglage système de l'utilisateur, et le worker n'a pas de matchMedia.
+  // The preference is read IN THE PAGE, not in the service worker: it is the
+  // user's system setting, and the worker has no matchMedia.
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.getElementById(ID)?.remove();
 
   const host = document.createElement('div');
   host.id = ID;
-  // z-index maximal : les fiches produit empilent des bandeaux collants, des
-  // volets panier et des cookies. En dessous, le toast serait invisible.
+  // Maximal z-index: product pages stack sticky banners, basket panels and
+  // cookie notices. Below them the toast would be invisible.
   host.style.cssText =
     'all:initial;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;pointer-events:none';
 
@@ -52,25 +51,25 @@ function paint({ title, kind }) {
 
   const text = document.createElement('span');
   text.textContent = title;
-  // Le verdict ne se coupe jamais en deux lignes : c'est le détail qui cède.
+  // The verdict never breaks onto two lines.
   text.style.cssText = 'font-weight:700;white-space:nowrap;flex:none';
   box.append(text);
 
   /**
-   * LA MARQUE : UN CARRÉ DONT LE TRAIT S'ÉCRIT EN FAISANT LE TOUR.
+   * THE MARK: A SQUARE WHOSE OUTLINE IS DRAWN ALL THE WAY ROUND.
    *
-   * La forme reste carrée — c'est le vocabulaire de toute la page. Ce qui est
-   * animé, c'est le TRACÉ : le trait part du milieu du bord haut et fait le tour
-   * dans le sens horaire en 320 ms, comme une aiguille. Le ✓ est noir et présent
-   * dès la première image : on n'attend pas la fin pour savoir que c'est acté,
-   * le contour ne fait que le confirmer.
+   * The shape stays square — that is the vocabulary of the whole page. What is
+   * animated is the STROKE: it starts at the middle of the top edge and travels
+   * clockwise, like a hand sweeping. The ✓ is black and present from the very
+   * first frame: you do not wait for the end to know it was saved, the outline
+   * merely confirms it.
    *
-   * Un SVG et non une bordure CSS : le tracé d'une bordure ne s'anime pas, alors
-   * qu'un `stroke-dashoffset` qui revient à zéro dessine exactement le trait. Le
-   * chemin démarre au milieu du haut plutôt qu'au coin — partir d'un angle se lit
-   * comme un décalage, pas comme un départ. La longueur est MESURÉE
-   * (`getTotalLength`) plutôt que calculée : un arrondi de un pixel laisserait un
-   * trait inachevé.
+   * An SVG rather than a CSS border: you cannot animate a border being drawn,
+   * whereas a `stroke-dashoffset` returning to zero draws exactly that. The path
+   * starts at the top middle rather than at a corner — starting from an angle
+   * reads as an offset, not as a beginning. The length is MEASURED
+   * (`getTotalLength`) rather than computed: a one-pixel rounding error would
+   * leave the outline unfinished.
    */
   const NS = 'http://www.w3.org/2000/svg';
 
@@ -84,8 +83,8 @@ function paint({ title, kind }) {
   svg.style.cssText = 'position:absolute;inset:0';
 
   const frame = document.createElementNS(NS, 'path');
-  // Décalé d'un demi-pixel : un trait de 1 px centré sur le bord déborderait de
-  // moitié et sortirait flou.
+  // Offset by half a pixel: a 1 px stroke centred on the edge would hang half
+  // outside and render blurred.
   frame.setAttribute('d', 'M10 .5 H19.5 V19.5 H.5 V.5 Z');
   frame.setAttribute('fill', 'none');
   frame.setAttribute('stroke', '#000');
@@ -95,8 +94,8 @@ function paint({ title, kind }) {
 
   const glyph = document.createElement('span');
   glyph.textContent = kind === 'ok' ? '✓' : kind === 'warn' ? '?' : '×';
-  // Pas de graisse forcée : le signe prend celle du texte de l'encart. En gras
-  // il pesait plus lourd que le message qu'il accompagne.
+  // No forced weight: the sign takes the weight of the box's text. In bold it
+  // outweighed the message it accompanies.
   glyph.style.cssText =
     'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:#000';
   mark.append(glyph);
@@ -106,23 +105,24 @@ function paint({ title, kind }) {
   root.append(box);
   document.documentElement.append(host);
 
-  // Après insertion seulement : `getTotalLength` exige que le chemin soit rendu.
-  // TROIS TEMPS, ET L'ORDRE EST TOUT.
+  // Only after insertion: `getTotalLength` requires the path to be laid out.
   //
-  //   1. la longueur du tracé, en `px` : `stroke-dasharray` accepte un nombre nu,
-  //      `stroke-dashoffset` exige une unité — sans elle il était ignoré ;
-  //   2. on FIGE ce point de départ en lisant le style calculé, transition non
-  //      encore armée ;
-  //   3. seulement alors on arme la transition, et l'image suivante vise zéro.
+  // THREE STEPS, AND THE ORDER IS EVERYTHING.
   //
-  // 520 ms, et une courbe peu chargée au départ : l'ancienne (.22,.61,.36,1)
-  // abattait 35 % du tour en 40 ms, ce qui se lisait comme un saut suivi d'une
-  // traîne. Le trait doit avancer d'un geste régulier, on doit le suivre.
+  //   1. the path length, in `px`: `stroke-dasharray` accepts a bare number,
+  //      `stroke-dashoffset` demands a unit — without it the value was ignored;
+  //   2. we PIN that starting point by reading the computed style, with the
+  //      transition not yet armed;
+  //   3. only then is the transition armed, and the next frame aims at zero.
   //
-  // Armer la transition en même temps qu'on pose la valeur de départ animait le
-  // départ lui-même — le navigateur transitionnait de 0 vers 76 pendant que
-  // l'image suivante redemandait 0. L'offset ne quittait jamais zéro : le carré
-  // était plein d'emblée, et aucune correction de durée n'y changeait rien.
+  // 520 ms, on a curve that is gentle at the start: the previous one
+  // (.22,.61,.36,1) covered 35 % of the loop in 40 ms, which read as a jump
+  // followed by a drag. The stroke must advance evenly, so the eye can follow it.
+  //
+  // Arming the transition in the same mutation that sets the starting value
+  // animated the start itself — the browser transitioned from 0 towards 76 while
+  // the next frame asked for 0 again. The offset never left zero: the square was
+  // full from the outset, and no change of duration made any difference.
   const len = frame.getTotalLength();
   frame.style.strokeDasharray = `${len}px`;
   frame.style.strokeDashoffset = reduceMotion ? '0px' : `${len}px`;
@@ -148,9 +148,8 @@ function paint({ title, kind }) {
 }
 
 /**
- * Affiche le toast dans l'onglet. N'échoue jamais bruyamment : sur une page
- * interne de Chrome l'injection est refusée, et ce n'est pas une raison de
- * casser un ajout qui, lui, a réussi.
+ * Shows the toast in the tab. Never fails loudly: on a Chrome-internal page the
+ * injection is refused, and that is no reason to break a save that succeeded.
  */
 export async function toast(tabId, payload) {
   if (!tabId) return;

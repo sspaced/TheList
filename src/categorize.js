@@ -1,18 +1,18 @@
-// Catégorisation via OpenRouter, avec repli local par mots-clés.
-// Taxonomie fermée : on force le modèle à choisir dedans, sinon les catégories
-// dérivent et le filtrage devient inutilisable.
+// Categorisation through OpenRouter, with a local keyword fallback.
+// The taxonomy is closed: the model is forced to pick inside it, otherwise the
+// categories drift and filtering becomes useless.
 //
-// LES CATÉGORIES SONT DES CLÉS, PAS DES LIBELLÉS.
+// CATEGORIES ARE KEYS, NOT LABELS.
 //
-// Elles étaient stockées en français (`category: 'Meuble'`), donc la même chaîne
-// servait de clé de rangement ET de texte affiché. Impossible à traduire : un
-// article rangé en « Meuble » l'aurait été pour toujours, et une recatégorisation
-// en anglais aurait créé un doublon « Furniture » à côté. On stocke donc un
-// identifiant stable (`furniture`) et l'affichage passe par i18n.
+// They used to be stored in French (`category: 'Meuble'`), so the same string
+// served as both the storage key AND the displayed text. Impossible to
+// translate: an item filed under "Meuble" would have stayed there forever, and
+// re-categorising in English would have created a duplicate "Furniture" beside
+// it. So we store a stable identifier (`furniture`) and display goes through i18n.
 //
-// `LEGACY_LABELS` n'est pas un vestige à nettoyer : il sert à MIGRER les articles
-// déjà enregistrés (cf. `migrateLegacyCategories` dans store.js) et à ramener la
-// réponse du modèle — qui répond en français — vers la clé.
+// `LEGACY_LABELS` is not a leftover to clean up: it MIGRATES already-stored items
+// (see `migrateLegacyCategories` in store.js) and maps the model's answer — which
+// comes back in French — onto the key.
 
 export const CATEGORIES = [
   'fashion',
@@ -39,7 +39,7 @@ export const CATEGORIES = [
   'other',
 ];
 
-/** Libellé français d'origine → clé. Table de migration ET de normalisation. */
+/** Original French label → key. Both a migration and a normalisation table. */
 export const LEGACY_LABELS = {
   Mode: 'fashion',
   Chaussures: 'shoes',
@@ -65,23 +65,23 @@ export const LEGACY_LABELS = {
   Autre: 'other',
 };
 
-/** Le modèle raisonne mieux sur des noms de catégories que sur des slugs : on
- *  l'interroge donc en français et on retraduit sa réponse en clé. */
+/** The model reasons better about category names than about slugs, so we ask it
+ *  in French and map its answer back onto a key. */
 const PROMPT_LABELS = Object.entries(LEGACY_LABELS).map(([label]) => label);
 
 const FALLBACK = 'other';
 
 /**
- * LE LEXIQUE EST BILINGUE, ET IL DOIT L'ÊTRE.
+ * THE LEXICON IS BILINGUAL, AND IT HAS TO BE.
  *
- * Il ne parlait que français. Sur une boutique anglophone, « Chase T-Shirt »
- * tombait dans la mode — le mot figurait dans la liste — mais « Stripe Shirt » et
- * « Down Jacket » finissaient dans « Autre » : deux articles du même site, du
- * même rayon, rangés différemment. Un repli qui ne comprend qu'une langue ne
- * rattrape rien sur la moitié du web.
+ * It only spoke French. On an English-language shop "Chase T-Shirt" landed in
+ * fashion — that word happened to be in the list — but "Stripe Shirt" and "Down
+ * Jacket" ended up in "Other": two items from the same shop and the same aisle,
+ * filed differently. A fallback that understands one language rescues nothing on
+ * half the web.
  *
- * L'ordre compte : les règles étroites passent avant les larges, sinon
- * « running shoe » serait rangé en sport et « laptop bag » en mode.
+ * Order matters: narrow rules come before broad ones, otherwise "running shoe"
+ * would be filed under sport and "laptop bag" under fashion.
  */
 const KEYWORDS = [
   ['shoes', /chaussure|sneaker|basket|boot|bottin|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe|air max|air force|air jordan|espadrille|derby|richelieu/i],
@@ -92,6 +92,7 @@ const KEYWORDS = [
   ['photo', /appareil photo|objectif|lens\b|caméra|camera|gopro|trépied|tripod|drone/i],
   ['electronics', /iphone|smartphone|téléphone|phone\b|tablette|tablet|ipad|tv |télévision|television|console|playstation|xbox|nintendo|montre connectée|smartwatch/i],
   ['kitchen', /poêle|casserole|pan\b|pot\b|couteau de cuisine|kitchen knife|robot cuiseur|mixeur|blender|cafetière|coffee maker|expresso|espresso|vaisselle|assiette|plate\b|verre à|mug\b/i],
+  // Before furniture: "Lampe de table" matched furniture's `table` first.
   ['home', /lampe de table|table lamp|lampe|luminaire|applique/i],
   ['furniture', /canapé|sofa|couch|fauteuil|armchair|table |desk\b|chaise|chair\b|bureau |étagère|shelf|shelving|lit |bed\b|matelas|mattress|commode|dresser|armoire|wardrobe/i],
   ['home', /coussin|cushion|rideau|curtain|tapis|rug\b|lampe|lamp\b|luminaire|linge de lit|bedding|couette|duvet cover|décoration|candle|bougie|aspirateur|vacuum/i],
@@ -105,8 +106,8 @@ const KEYWORDS = [
   ['auto', /pneu|tyre|tire\b|voiture|\bcar\b|moto|motorbike|casque moto|autoradio|coffre de toit|huile moteur/i],
   ['food', /café en grain|coffee bean|thé |\btea\b|chocolat|chocolate|vin |wine\b|whisky|whiskey|bière|beer\b|épice|spice|huile d.olive|olive oil/i],
   ['health', /complément alimentaire|supplement|vitamine|vitamin|tensiomètre|masseur|massage|orthèse|pharmacie|pharmacy/i],
-  // La mode en DERNIER : ses mots sont les plus génériques (« shirt », « bag »)
-  // et happeraient sinon « laptop bag » ou « running shoe ».
+  // Fashion LAST: its words are the most generic ("shirt", "bag") and would
+  // otherwise swallow "laptop bag" or "running shoe".
   ['fashion', /t-?shirt|shirt\b|chemise|top\b|pantalon|trousers|pants\b|jean|robe|dress\b|veste|jacket|manteau|coat\b|parka|pull|sweater|knit|sweat|hoodie|jupe|skirt|short|sac\b|bag\b|ceinture|belt\b|lunettes de soleil|sunglasses|cap\b|beanie|scarf|écharpe|socks?|chaussettes?/i],
 ];
 
@@ -116,8 +117,8 @@ export function guess(product) {
   return FALLBACK;
 }
 
-// Le modèle répond en texte libre ET en français : on ramène sa réponse dans la
-// taxonomie, et ce qu'on rend est une CLÉ.
+// The model answers in free text AND in French: we map its reply back into the
+// taxonomy, and what we return is a KEY.
 function normalize(raw) {
   const s = String(raw || '')
     .replace(/["'`.\n]/g, ' ')
@@ -131,7 +132,7 @@ function normalize(raw) {
     if (target === f) return key;
     if (target.includes(f) || f.includes(target)) best = best || key;
   }
-  // Le modèle a pu répondre par la clé elle-même.
+  // The model may have answered with the key itself.
   return best || (CATEGORIES.includes(target) ? target : null);
 }
 
@@ -153,6 +154,11 @@ export async function categorizeRemote(product, settings) {
         max_tokens: 12,
         messages: [
           {
+            // The prompt stays in FRENCH on purpose, and it is not an oversight
+            // against the English-only rule: the model is shown the French
+            // labels because it answers with one of them, and `normalize()` maps
+            // that answer back onto a key. Asking in English would mean a second
+            // label set to keep in sync for no gain.
             role: 'system',
             content:
               'Tu classes un produit e-commerce dans exactement une catégorie de cette liste : ' +
@@ -185,8 +191,8 @@ export async function categorizeRemote(product, settings) {
   }
 }
 
-// Ne casse jamais l'ajout : en cas d'échec réseau/clé/modèle, on retombe sur
-// les mots-clés et on remonte l'erreur pour l'afficher dans les réglages.
+// Never breaks a save: on a network, key or model failure we fall back to the
+// keywords and surface the error so it can be shown in the settings.
 export async function categorize(product, settings) {
   if (!settings.autoCategorize || !settings.apiKey) return { category: guess(product), error: null };
   try {
