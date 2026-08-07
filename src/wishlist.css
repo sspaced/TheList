@@ -425,7 +425,6 @@ body {
    prix étant courts et déjà tenus par leur propre troncature. */
 .ptitle {
   font-weight: 700;
-  flex: 1 1 auto;
   min-width: 0;
   text-align: center;
   overflow: hidden;
@@ -438,7 +437,6 @@ body {
    qui reste, et c'est lui qui se tronque. */
 .mtitle {
   font-weight: 700;
-  flex: 1 1 auto;
   min-width: 0;
   text-align: center;
   overflow: hidden;
@@ -446,10 +444,18 @@ body {
   white-space: nowrap;
 }
 
+/* UNE GRILLE, PAS UNE RANGÉE FLEX.
+   En flex, le titre se centrait dans l'espace RESTANT entre le domaine et le
+   prix — deux éléments de largeurs différentes — il n'était donc jamais au
+   centre de la carte. Trois colonnes dont les latérales valent chacune `1fr` :
+   elles sont égales par construction, et la colonne du milieu tombe exactement
+   au centre, quelles que soient les longueurs de part et d'autre.
+   `minmax(0, …)` partout, sinon un contenu long refuse de se tronquer et
+   déborde la colonne — le même piège que sur la grille des tuiles. */
 .info {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
   /* Pas de bordure haute : celle du bas de l'image sert d'arête commune, sinon
      les deux se cumulent et le trait fait 2 px au milieu de la tuile. */
@@ -460,8 +466,11 @@ body {
 
 /* Le nom de domaine peut être long (« boutique.machin-truc.co.uk ») : il peut
    se rétrécir, mais après le titre — il sert de repère et se lit en premier. */
+/* Pas de `justify-self` : par défaut l'élément OCCUPE sa colonne, donc il se
+   tronque dedans. Avec `start`, il se dimensionne sur son contenu et déborde
+   sur la colonne voisine — le domaine passait par-dessus le titre. */
 .site {
-  flex: 0 1 auto;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -469,6 +478,7 @@ body {
 }
 
 .price {
+  text-align: right;
   white-space: nowrap;
 }
 
