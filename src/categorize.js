@@ -83,6 +83,16 @@ const FALLBACK = 'other';
  * Order matters: narrow rules come before broad ones, otherwise "running shoe"
  * would be filed under sport and "laptop bag" under fashion.
  */
+/**
+ * Revision of the lexicon below. BUMP IT BY HAND whenever `KEYWORDS` changes.
+ *
+ * A category is not a fact about a product, it is the output of this lexicon at
+ * one point in time. When the lexicon is fixed, everything already stored still
+ * carries the old answer and nothing would ever revisit it — see
+ * `recategorizeIfStale` in store.js, which re-runs the pass once per revision.
+ */
+export const CAT_REV = 2;
+
 const KEYWORDS = [
   ['shoes', /chaussure|sneaker|basket|boot|bottin|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe|air max|air force|air jordan|espadrille|derby|richelieu/i],
   ['jewellery', /montre|watch|bijou|jewel|collier|necklace|bracelet|bague|ring\b|boucle d.oreille|earring/i],

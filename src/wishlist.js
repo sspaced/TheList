@@ -1,13 +1,19 @@
 /**
- * La wishlist réduite à ce qu'elle montre : les images des produits, quatre par
- * ligne, plein cadre.
+ * The list reduced to what it shows: product images, four per row, full frame.
  *
- * Tout le reste a été retiré (recherche, tri, filtres par catégorie, réglages
- * OpenRouter, export/import). Rien n'est cassé pour autant : l'ajout, la
- * catégorisation et le stockage vivent dans le service worker et dans store.js,
- * cette page ne faisait que les piloter. Ce qui est utile revient au cas par cas.
+ * Everything else was stripped out (search, sorting, category filters, OpenRouter
+ * settings, export/import). Nothing broke for it: saving, categorising and
+ * storage live in the service worker and in store.js, this page only drove them.
+ * Whatever proves useful comes back, case by case.
  */
-import { allItems, migrateFromSync, migrateLegacyCategories, putItem, removeItem } from './store.js';
+import {
+  allItems,
+  migrateFromSync,
+  migrateLegacyCategories,
+  putItem,
+  recategorizeIfStale,
+  removeItem,
+} from './store.js';
 import { allMedia, putMedia, removeMedia } from './media.js';
 import { CATEGORIES } from './categorize.js';
 import { flip, isMuted, loadMute, setMuted, tick, tock } from './sound.js';
@@ -33,36 +39,36 @@ const catsBox = document.getElementById('cats');
 
 let items = [];
 let media = [];
-/** Catégorie affichée, `null` = toutes. */
+/** Displayed category, `null` = all of them. */
 let filter = null;
-/** Section affichée : les produits, ou ce qu'on garde pour lire. */
+/** Displayed section: the products, or what is kept to read. */
 let section = 'all';
-/** Recherche libre, appliquée à la section courante. */
+/** Free-text search, applied to the current section. */
 let query = '';
 
 /**
- * LA PILE D'ANNULATION.
+ * THE UNDO STACK.
  *
- * La croix supprime sans confirmation — c'est voulu, une boîte de dialogue à
- * chaque retrait serait pire que le risque. Mais supprimer sans filet ne l'est
- * pas : ⌘Z (⌃Z ailleurs) remet le dernier retiré, autant de fois qu'il le faut.
+ * The cross deletes without confirmation — deliberately: a dialog on every
+ * removal would be worse than the risk. Deleting without a net is not, though:
+ * ⌘Z (⌃Z elsewhere) puts the last removed item back, as many times as needed.
  *
- * En mémoire seulement, et c'est délibéré : l'annulation répare un geste qu'on
- * vient de faire. Survivre à un rechargement en ferait une corbeille, ce qui est
- * un autre objet — et il faudrait alors décider quand la vider.
+ * In memory only, and that is deliberate: undo repairs a gesture you have just
+ * made. Surviving a reload would make it a wastebasket, which is a different
+ * object — and we would then have to decide when to empty it.
  */
 const undone = [];
 
 /**
- * LA RECHERCHE PORTE SUR TOUT CE QUI EST ENREGISTRÉ.
+ * SEARCH COVERS EVERYTHING THAT IS STORED.
  *
- * Un produit se cherche par son titre, sa marque, son domaine, son prix ou sa
- * catégorie — et par le LIBELLÉ de celle-ci autant que par sa clé, sinon taper
- * « meuble » ne trouverait rien alors que la tuile l'affiche. Un passage se
- * cherche par son texte, son titre et son domaine.
+ * A product is found by its title, brand, hostname, price or category — and by
+ * that category's LABEL as much as by its key, otherwise typing "meuble" would
+ * find nothing while the tile displays exactly that. A passage is found by its
+ * text, its title and its hostname.
  *
- * Accents et casse sont neutralisés des deux côtés : chercher « electronique »
- * doit trouver « Électronique ».
+ * Accents and case are folded on both sides: searching "electronique" has to
+ * find "Électronique".
  */
 const fold = (v) =>
   (v ?? '')
@@ -78,17 +84,16 @@ function haystack(o) {
 }
 
 /**
- * Le texte, avec les occurrences de la recherche entourées de `<mark>`.
+ * The text, with search hits wrapped in `<mark>`.
  *
- * On ne construit JAMAIS ce fragment par `innerHTML` : le texte vient de pages
- * tierces, et y injecter du balisage rendrait la page vulnérable à ce qu'un
- * marchand aurait écrit dans son titre.
+ * This fragment is NEVER built through `innerHTML`: the text comes from
+ * third-party pages, and injecting markup into it would expose the page to
+ * whatever a merchant wrote in their title.
  *
- * La difficulté est ailleurs : la recherche est insensible aux accents, donc
- * « energie » doit surligner « énergie ». Comparer des chaînes normalisées ne
- * suffit pas — la normalisation change les longueurs, et les positions ne
- * correspondent plus. On construit donc une table qui relie chaque caractère
- * normalisé à son index d'origine.
+ * The difficulty lies elsewhere: search is accent-insensitive, so "energie" has
+ * to highlight "énergie". Comparing folded strings is not enough — folding
+ * changes lengths, and the positions no longer line up. So we build a table
+ * mapping each folded character back to its original index.
  */
 function foldIndexed(s) {
   let out = '';
@@ -103,7 +108,7 @@ function foldIndexed(s) {
       map.push(i);
     }
   }
-  map.push(s.length); // borne finale, pour l'index de fin d'un mot en queue
+  map.push(s.length); // final bound, for the end index of a word at the tail
   return { out, map };
 }
 
@@ -116,8 +121,8 @@ function marked(text) {
   }
 
   const { out, map } = foldIndexed(text);
-  // Toutes les plages à surligner, fusionnées : deux mots qui se chevauchent ne
-  // doivent pas produire deux marques imbriquées.
+  // Every range to highlight, merged: two overlapping words must not produce two
+  // nested marks.
   const spans = [];
   for (const w of words) {
     let at = out.indexOf(w);
@@ -149,9 +154,8 @@ function marked(text) {
 function matches(o) {
   if (!query) return true;
   const hay = haystack(o);
-  // Tous les mots doivent être présents, dans n'importe quel ordre : « chaise
-  // amazon » trouve la chaise sur Amazon, pas tout ce qui contient l'un OU
-  // l'autre.
+  // Every word must be present, in any order: "chaise amazon" finds the chair on
+  // Amazon, not everything containing one OR the other.
   return fold(query)
     .split(/\s+/)
     .filter(Boolean)
@@ -159,17 +163,16 @@ function matches(o) {
 }
 
 /**
- * Le titre affiché sur une tuile : DEUX MOTS, plafonnés.
+ * The title shown on a tile: TWO WORDS, capped.
  *
- * Les marchands écrivent des phrases entières — « Mellow Clo Everyday Stretch
- * Nylon TrousersBlack » — et sur une ligne partagée avec le domaine et le prix
- * il n'y a de place pour rien d'autre. Les deux premiers mots suffisent à
- * reconnaître un article qu'on a soi-même enregistré ; le titre complet reste
- * dans l'infobulle du lien.
+ * Merchants write whole sentences — "Mellow Clo Everyday Stretch Nylon
+ * TrousersBlack" — and on a line shared with the hostname and the price there is
+ * room for nothing else. The first two words are enough to recognise an item you
+ * saved yourself; the full title stays in the link's tooltip.
  *
- * Le plafond de caractères est une seconde barrière : deux mots peuvent être
- * très longs. Les points de suspension ne s'affichent que si l'on a coupé — les
- * mettre systématiquement laisserait croire à un texte tronqué qui ne l'est pas.
+ * The character cap is a second barrier: two words can be very long. The ellipsis
+ * only appears when something was cut — showing it always would suggest a
+ * truncated text where there is none.
  */
 const TITLE_WORDS = 2;
 const TITLE_CHARS = 22;
@@ -187,7 +190,7 @@ function shortTitle(s) {
   return cut ? `${out}…` : out;
 }
 
-/** Un span de classe donnée, dont le texte porte les marques de recherche. */
+/** A span of the given class, whose text carries the search marks. */
 function withText(cls, text) {
   const el = document.createElement('span');
   el.className = cls;
@@ -204,15 +207,15 @@ function money(item) {
       maximumFractionDigits: item.price % 1 ? 2 : 0,
     }).format(item.price);
   } catch {
-    // Devise illisible sur la page : on montre quand même le nombre.
+    // Currency unreadable on the page: we still show the number.
     return `${item.price} ${item.currency || ''}`.trim();
   }
 }
 
 function tile(item) {
-  // Le bouton de suppression ne peut pas vivre DANS le lien — un <button> dans
-  // un <a> est du HTML invalide, et le clic partirait quand même sur la fiche
-  // produit. D'où l'enveloppe : le lien couvre la tuile, la croix est sa voisine.
+  // The delete button cannot live INSIDE the link — a <button> within an <a> is
+  // invalid HTML, and the click would navigate to the product page anyway. Hence
+  // the wrapper: the link covers the tile, the cross is its sibling.
   const cell = document.createElement('div');
   cell.className = 'cell';
 
@@ -231,10 +234,10 @@ function tile(item) {
     img.alt = '';
     img.loading = 'lazy';
     img.referrerPolicy = 'no-referrer';
-    // Une image qui ne charge pas le DIT. Avant, on la retirait en silence : la
-    // tuile devenait grise sans qu'on sache si l'extraction avait échoué, si
-    // l'URL était mauvaise, ou si l'hébergeur refusait la requête. Trois causes
-    // très différentes, un seul symptôme muet — de quoi chercher longtemps.
+    // An image that fails to load SAYS SO. It used to be removed in silence: the
+    // tile turned grey with no way to tell whether extraction had failed, the URL
+    // was wrong, or the host refused the request. Three very different causes, one
+    // mute symptom — enough to search for a long time.
     img.onerror = () => {
       const why = document.createElement('div');
       why.className = 'broken';
@@ -244,9 +247,9 @@ function tile(item) {
     shot.append(img);
   }
 
-  // Tout sur une ligne : le domaine à gauche, le titre au milieu, le prix à
-  // droite. Les deux extrémités sont courtes et fixes, le titre occupe ce qui
-  // reste — c'est donc lui qui cède quand la place manque.
+  // Everything on one line: hostname left, title centred, price right. Both ends
+  // are short and fixed, the title takes what is left — so it is the one that
+  // gives way when room runs out.
   const info = document.createElement('div');
   info.className = 'info';
   info.append(
@@ -276,9 +279,9 @@ function tile(item) {
 }
 
 /**
- * Une tuile de passage : le texte occupe le carré, la ligne du bas garde la
- * forme d'un produit — le domaine à gauche, la date à droite. Rien à afficher en
- * image, donc rien de gris à regarder.
+ * A passage tile: the text fills the square, the bottom line keeps a product's
+ * shape — hostname left, title centred. No image to show, so nothing grey to
+ * look at.
  */
 function mediaTile(item) {
   const cell = document.createElement('div');
@@ -302,9 +305,9 @@ function mediaTile(item) {
   info.className = 'info';
   info.append(
     withText('site', item.site || ''),
-    // Pas de raccourcissement ici : sans prix à loger, la ligne d'un passage a
-    // la place de porter le titre entier — et le titre d'un article est ce qui
-    // permet de le reconnaître, bien plus que ses deux premiers mots.
+    // No shortening here: with no price to house, a passage's line has room for
+    // the whole title — and an article's title is what makes it recognisable, far
+    // more than its first two words.
     withText('mtitle', item.title || ''),
   );
 
@@ -327,10 +330,10 @@ function mediaTile(item) {
 }
 
 /**
- * Le menu ne liste que les catégories RÉELLEMENT présentes, avec leur nombre.
- * Proposer les vingt catégories du modèle dont dix-huit sont vides, c'est faire
- * cliquer dans le vide. L'ordre canonique de `CATEGORIES` est conservé — un menu
- * qui se réordonne à chaque ajout ne se mémorise pas.
+ * The menu lists only the categories ACTUALLY present, with their count.
+ * Offering the taxonomy's twenty categories when eighteen are empty is offering
+ * clicks into the void. The canonical order of `CATEGORIES` is kept — a menu that
+ * reorders itself on every save cannot be memorised.
  */
 function renderDropdown() {
   const counts = new Map();
@@ -381,12 +384,12 @@ ddBtn.onclick = () => {
 };
 
 /**
- * Les raccourcis, LUS DANS CHROME et non recopiés à la main.
+ * The shortcuts, READ FROM CHROME rather than copied out by hand.
  *
- * `chrome.commands.getAll()` rend ce qui est RÉELLEMENT attribué. Écrire
- * « ⌥⇧A » en dur mentirait dès que la combinaison est prise par une autre
- * extension — Chrome laisse alors le raccourci vide, sans rien dire, et c'est
- * exactement le genre de silence qui fait chercher longtemps.
+ * `chrome.commands.getAll()` returns what is ACTUALLY bound. Hard-coding "⌥⇧A"
+ * would lie the moment another extension claims the combination — Chrome then
+ * leaves the shortcut empty, without a word, and that is exactly the kind of
+ * silence that makes you search for a long time.
  */
 const PRETTY = { Command: '⌘', Ctrl: '⌃', MacCtrl: '⌃', Alt: '⌥', Shift: '⇧' };
 const prettyCombo = (s) =>
@@ -415,9 +418,9 @@ async function renderKeys() {
     return row;
   });
 
-  // Celui-ci n'est pas une commande Chrome mais un raccourci de la page : il ne
-  // remonte pas dans `getAll()`, on l'ajoute donc à la main. Le taire le rendrait
-  // introuvable.
+  // This one is not a Chrome command but a shortcut of the page: it does not come
+  // back from `getAll()`, so it is added by hand. Leaving it out would make it
+  // undiscoverable.
   const undo = document.createElement('div');
   undo.className = 'keys-row';
   undo.append(
@@ -429,8 +432,8 @@ async function renderKeys() {
   );
   rows.push(undo);
 
-  // Un raccourci se change dans une page interne de Chrome, qu'un lien ordinaire
-  // n'a pas le droit d'ouvrir — d'où le passage par `tabs.create`.
+  // A shortcut is changed on a Chrome-internal page, which an ordinary link is
+  // not allowed to open — hence going through `tabs.create`.
   const edit = document.createElement('button');
   edit.className = 'dd-opt keys-edit';
   edit.type = 'button';
@@ -444,10 +447,10 @@ async function renderKeys() {
 }
 
 /**
- * Le sélecteur de langue. Il rejoue TOUT le rendu après le changement — libellés
- * de catégories, titres des boutons, panneau des raccourcis, et le format des
- * montants (`Intl` suit la locale). Ne repeindre que les textes laisserait
- * « 1 729 € » au format français sur une interface anglaise.
+ * The language picker. It replays the WHOLE render after a change — category
+ * labels, button titles, shortcuts panel, and amount formatting (`Intl` follows
+ * the locale). Repainting only the copy would leave "1 729 €" in French format on
+ * an English interface.
  */
 function renderLang() {
   langLabel.textContent = lang().toUpperCase();
@@ -492,9 +495,9 @@ langBtn.onclick = () => {
 };
 
 /**
- * Le sélecteur de section. Le filtre de catégories n'a de sens que sur les
- * produits — les passages n'en ont pas — on le masque plutôt que de le laisser
- * proposer un choix sans effet.
+ * The section picker. The category filter only makes sense on products —
+ * passages have none — so it is hidden rather than left offering a choice with
+ * no effect.
  */
 const SECTIONS = [
   { key: 'all', label: () => t('all') },
@@ -502,9 +505,9 @@ const SECTIONS = [
   { key: 'media', label: () => t('sectionMedia') },
 ];
 
-/** Ce que porte une section, déjà filtré par la recherche. Le tri est celui de
- *  la date : mêlés, produits et passages se lisent dans l'ordre où ils sont
- *  arrivés, pas en deux paquets. */
+/** What a section holds, already filtered by the search. Sorted by date: mixed
+ *  together, products and passages read in the order they arrived, not as two
+ *  separate piles. */
 function contentOf(key) {
   const list = key === 'products' ? items : key === 'media' ? media : [...items, ...media];
   return list.filter(matches).sort((a, b) => b.ts - a.ts);
@@ -524,8 +527,8 @@ function renderSection() {
       b.append(
         Object.assign(document.createElement('span'), {
           className: 'dd-n',
-          // Le compteur suit la recherche : c'est ainsi qu'on voit qu'il y a des
-          // résultats dans une AUTRE section sans avoir à y basculer.
+          // The counter follows the search: that is how you see there are hits
+          // in ANOTHER section without having to switch to it.
           textContent: String(contentOf(x.key).length),
         }),
       );
@@ -562,15 +565,15 @@ function paintMute() {
 muteBtn.onclick = async () => {
   await setMuted(!isMuted());
   paintMute();
-  // Le son de confirmation ne se joue qu'en RÉTABLISSANT : il est la preuve que
-  // ça remarche. Le jouer en coupant serait absurde.
+  // The confirmation sound only plays when UNMUTING: it is the proof that sound
+  // works again. Playing it while muting would be absurd.
   if (!isMuted()) flip();
 };
 keysBtn.onclick = async () => {
   tick();
   if (keysPanel.hidden) {
-    // Relu à chaque ouverture : l'utilisateur peut venir de les changer dans
-    // l'onglet d'à côté, et un panneau qui affiche l'état d'avant ne sert à rien.
+    // Re-read on every opening: they may have just been changed in the next tab,
+    // and a panel showing the previous state is of no use.
     await renderKeys();
     keysPanel.hidden = false;
     keysBtn.setAttribute('aria-expanded', 'true');
@@ -584,7 +587,7 @@ function closeKeys() {
   keysBtn.setAttribute('aria-expanded', 'false');
 }
 
-// Un panneau ouvert doit pouvoir se refermer sans choisir : clic ailleurs, ou Échap.
+// An open panel must be dismissable without choosing: click elsewhere, or Esc.
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#cats')) closeDropdown();
   if (!e.target.closest('#keys')) closeKeys();
@@ -592,17 +595,17 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#section')) closeSection();
 });
 document.addEventListener('keydown', async (e) => {
-  // ⌘Z sur Mac, ⌃Z ailleurs. Ignoré pendant une saisie : dans le champ de
-  // recherche, ⌘Z doit rendre le texte effacé, pas ressusciter un article.
+  // ⌘Z on Mac, ⌃Z elsewhere. Ignored while typing: in the search field ⌘Z must
+  // bring back the erased text, not resurrect an item.
   const typing = e.target instanceof HTMLInputElement || e.target?.isContentEditable;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !typing) {
     const last = undone.pop();
     if (!last) return;
     e.preventDefault();
     tick();
-    // On ne bascule QUE si l'article rendu serait invisible là où on se trouve.
-    // La section TOUT les montre tous, et rester dans la vue qu'on avait choisie
-    // vaut mieux que d'être déplacé pour rien.
+    // We switch ONLY if the restored item would be invisible where we are. The
+    // ALL section shows everything, and staying in the view you chose beats being
+    // moved for nothing.
     if (section !== 'all' && section !== last.section) section = last.section;
     if (last.section === 'media') await putMedia(last.item);
     else await putItem(last.item);
@@ -617,12 +620,12 @@ document.addEventListener('keydown', async (e) => {
 });
 
 /**
- * Total en euros de ce qui est AFFICHÉ — il suit donc le filtre de catégorie.
+ * Total in euros of what is DISPLAYED — so it follows the category filter.
  *
- * On n'additionne que ce qui est réellement en euros : un prix en dollars ou un
- * prix qu'on n'a pas su lire ne peut pas entrer dans une somme en euros. Et on
- * ne le tait pas — le nombre d'articles laissés de côté s'affiche à côté, sinon
- * le total serait faux sans le dire.
+ * Only what is actually in euros is summed: a price in dollars, or a price we
+ * failed to read, cannot enter a total in euros. And it is not hidden — the
+ * number of items left out is shown beside it, otherwise the total would be
+ * wrong without saying so.
  */
 function renderTotal(shown) {
   const counted = shown.filter((i) => i.price != null && (!i.currency || i.currency === 'EUR'));
@@ -651,13 +654,13 @@ function render() {
   if (section === 'media') {
     const shown = contentOf('media');
     grid.replaceChildren(...shown.map(mediaTile));
-    // Pas de total en euros sur des passages : on compte des éléments.
+    // No euro total on passages: we count items.
     totalEl.textContent = String(shown.length);
   } else if (section === 'all') {
     const shown = contentOf('all');
     grid.replaceChildren(...shown.map((o) => (o.kind === 'quote' ? mediaTile(o) : tile(o))));
-    // Le total en euros reste juste : `renderTotal` compte à part ce qui n'a pas
-    // de prix, et un passage n'en a pas — il apparaît donc en « hors total ».
+    // The euro total stays correct: `renderTotal` counts what has no price
+    // separately, and a passage has none — so it shows up as "out of total".
     renderTotal(shown);
   } else {
     const shown = contentOf('products').filter((i) => !filter || i.category === filter);
@@ -671,19 +674,19 @@ function render() {
 async function refresh() {
   [items, media] = await Promise.all([allItems(), allMedia()]);
   items.sort((a, b) => b.ts - a.ts);
-  // La catégorie filtrée peut avoir disparu (dernier article supprimé) : sans ça
-  // on resterait sur une grille vide sans savoir pourquoi.
+  // The filtered category may have vanished (its last item deleted): without this
+  // we would sit on an empty grid with no idea why.
   if (filter && !items.some((i) => i.category === filter)) filter = null;
   render();
 }
 
-// L'ajout se fait depuis le service worker : on suit le stockage pour que la
-// page se mette à jour toute seule si elle est déjà ouverte.
+// Saving happens in the service worker: we watch storage so the page updates on
+// its own when it is already open.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  // Produits (`i:`) et passages (`m:`) partagent maintenant `local`. On ignore
-  // tout le reste — la clé de langue, le réglage muet — sinon couper le son
-  // redessinerait la grille entière.
+  // Products (`i:`) and passages (`m:`) now share `local`. Everything else is
+  // ignored — the language key, the mute setting — otherwise muting would repaint
+  // the entire grid.
   if (Object.keys(changes).some((k) => k.startsWith('i:') || k.startsWith('m:'))) refresh();
 });
 
@@ -691,8 +694,8 @@ qInput.oninput = () => {
   query = qInput.value;
   render();
 };
-// Échap vide le champ : sortir d'une recherche ne doit pas demander de
-// sélectionner le texte pour l'effacer.
+// Esc clears the field: leaving a search should not require selecting the text
+// to erase it.
 qInput.onkeydown = (e) => {
   if (e.key !== 'Escape' || !qInput.value) return;
   e.stopPropagation();
@@ -705,8 +708,15 @@ await initI18n();
 await loadMute();
 paintMute();
 renderLang();
-// Deux migrations, idempotentes toutes les deux : l'ordre compte, il faut avoir
-// rapatrié les articles depuis `sync` avant de vouloir corriger leurs catégories.
+// Three maintenance passes, all idempotent, and the order matters: items have to
+// be brought back from `sync` before their categories can be corrected, and the
+// French labels have to become keys before the lexicon is re-run over them.
 await migrateFromSync();
 await migrateLegacyCategories();
+const recategorised = await recategorizeIfStale();
+// Reported rather than done in silence: a pass that rewrites categories under you
+// owes you the list of what it changed.
+if (recategorised.length) {
+  console.info(`[TheList] ${recategorised.length} item(s) re-categorised`, recategorised);
+}
 await refresh();

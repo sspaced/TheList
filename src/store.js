@@ -115,6 +115,49 @@ export async function migrateLegacyCategories() {
 }
 
 /**
+ * Re-runs the keyword lexicon over every stored item.
+ *
+ * The lexicon has changed since most of them were saved: it only spoke French,
+ * and its order let `table` in furniture catch "Lampe de table" before home ever
+ * saw it. Those items kept the wrong answer, and nothing else would ever have
+ * looked at them again.
+ *
+ * Guarded on `CAT_REV` rather than run on every load, because the pass WRITES:
+ * each change fires `storage.onChanged`, which the list page listens to, and
+ * repainting the grid on every opening for nothing is worse than the staleness.
+ *
+ * It re-runs `guess()` only, never the model: that would want a key, one network
+ * round trip per item and money — a maintenance pass is not the place for it. The
+ * trade-off is stated plainly: an item classified by the model gets demoted to
+ * what the keywords make of it.
+ *
+ * Returns what CHANGED, so the caller can show it instead of mutating in silence.
+ */
+export async function recategorizeAll() {
+  const { guess } = await import('./categorize.js');
+  const items = await allItems();
+  const changed = [];
+  for (const it of items) {
+    const next = guess(it);
+    if (next === it.category) continue;
+    await putItem({ ...it, category: next });
+    changed.push({ title: it.title, from: it.category, to: next });
+  }
+  return changed;
+}
+
+export async function recategorizeIfStale() {
+  const { CAT_REV } = await import('./categorize.js');
+  const { catRev } = await chrome.storage.local.get({ catRev: 0 });
+  if (catRev >= CAT_REV) return [];
+  const changed = await recategorizeAll();
+  // Stamped AFTER the pass: interrupted halfway, the next opening starts over,
+  // which is harmless — `guess()` is deterministic and the writes are idempotent.
+  await chrome.storage.local.set({ catRev: CAT_REV });
+  return changed;
+}
+
+/**
  * Moves items out of `storage.sync` and into `storage.local`.
  *
  * The order is the whole point: we WRITE to local before clearing sync. A crash
