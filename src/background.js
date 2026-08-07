@@ -338,7 +338,12 @@ async function installMenus() {
     chrome.contextMenus.create({ id: 'add', title: t('menuAddProduct'), contexts: ['page'] });
     chrome.contextMenus.create({ id: 'pick', title: t('menuPick'), contexts: ['page'] });
     chrome.contextMenus.create({ id: 'quote', title: t('menuSaveQuote'), contexts: ['selection'] });
-    chrome.contextMenus.create({ id: 'open', title: t('menuOpen'), contexts: ['action', 'page'] });
+    // `selection` as well, and not only because opening the list after saving a
+    // passage is useful: Chrome shows its own icon and the extension's NAME only
+    // when it has to collapse SEVERAL items into a submenu. With one item — which
+    // is all a selection right-click used to match — the entry sits bare among
+    // Chrome's own, with nothing saying whose it is.
+    chrome.contextMenus.create({ id: 'open', title: t('menuOpen'), contexts: ['action', 'page', 'selection'] });
   });
 }
 

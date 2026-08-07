@@ -190,12 +190,46 @@ function shortTitle(s) {
   return cut ? `${out}…` : out;
 }
 
-/** A span of the given class, whose text carries the search marks. */
-function withText(cls, text) {
+/**
+ * A span of the given class, whose text carries the search marks.
+ *
+ * `full` is the untruncated version, when there is one. It is remembered on the
+ * element rather than turned into a `title` straight away, because whether a
+ * tooltip is WARRANTED is not known yet — see `markTooltips`.
+ */
+function withText(cls, text, full) {
   const el = document.createElement('span');
   el.className = cls;
   el.append(marked(text));
+  if (full && full !== text) el.dataset.full = full;
   return el;
+}
+
+/**
+ * A TOOLTIP ONLY WHERE SOMETHING IS ACTUALLY HIDDEN.
+ *
+ * A tooltip that repeats what you can already read is noise, and it used to sit
+ * on the whole tile — so hovering anywhere, over any item, popped a grey box
+ * saying what the line already said.
+ *
+ * Two ways a title gets cropped, and only one of them is knowable in advance:
+ *   - `shortTitle` cuts to two words, so the span's text differs from the full
+ *     one and `withText` has already recorded it;
+ *   - CSS truncates with an ellipsis when the column is too narrow, which depends
+ *     on the layout. Nothing but a MEASUREMENT can tell: `scrollWidth` is the
+ *     text's real width, `clientWidth` the box that shows it.
+ *
+ * Run after the paint, and again on resize — a window dragged wider un-crops
+ * titles, and a tooltip left behind would then be the noise we just removed.
+ */
+function markTooltips() {
+  for (const el of grid.querySelectorAll('.ptitle, .mtitle')) {
+    const full = el.dataset.full || el.textContent;
+    // The +1 absorbs sub-pixel rounding: a box measured 199.6 px wide reports a
+    // 200 px scrollWidth and every single title would claim to be cropped.
+    if (el.dataset.full || el.scrollWidth > el.clientWidth + 1) el.title = full;
+    else el.removeAttribute('title');
+  }
 }
 
 function money(item) {
@@ -253,7 +287,7 @@ function tile(item) {
   info.className = 'info';
   info.append(
     withText('site', item.site || ''),
-    withText('ptitle', shortTitle(item.title)),
+    withText('ptitle', shortTitle(item.title), item.title || ''),
     Object.assign(document.createElement('span'), {
       className: 'price' + (item.price == null ? ' none' : ''),
       textContent: money(item),
@@ -671,7 +705,12 @@ function render() {
     renderTotal(shown);
   }
   renderSection();
+  // After the paint: `scrollWidth` is meaningless before the browser has laid the
+  // text out.
+  requestAnimationFrame(markTooltips);
 }
+
+addEventListener('resize', markTooltips);
 
 async function refresh() {
   [items, media] = await Promise.all([allItems(), allMedia()]);
