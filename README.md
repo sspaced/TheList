@@ -8,8 +8,15 @@ again. One shortcut on any page: a product, a whole basket, or a passage of text
 **No per-site rules.** Writing an Amazon adapter, then an Apple adapter, then
 starting over at every theme redesign would have been easy. Extraction is
 deliberately structural: we first read what the merchant **declares** (JSON-LD
-`schema.org/Product`, microdata, OpenGraph) and only fall back to reasoning about
-page structure — never about class names.
+`schema.org/Product` and `BreadcrumbList`, microdata, OpenGraph) and only fall
+back to reasoning about page structure — never about class names. The same rule
+picks the photo: the widest variant the page's own `srcset` names, not the small
+one the browser happened to load for a thumbnail slot.
+
+**A product's name says what it is called; the shelf says what it is.** Titles are
+a brand and a model code — "Studio Display XDR" contains no category noun at all —
+so a category is read from where the merchant filed the product (`Mac > Moniteurs`)
+and from the URL's path, before ever falling back to the name.
 
 **A product is a block, not a collection of fields.** Title, price and image come
 out of the *same* container. That is what prevents the classic chimera: one item's
@@ -35,6 +42,7 @@ that does not help you find an object again has no place on screen.
 | `⌥S` | Saves the selected text along with its source. Also from the context menu. |
 | `⌥P` | **Pick** one product: the block under the pointer is outlined, a click saves it. For search pages and category grids. Esc or right-click leaves. |
 | `⌥L` | Opens the list. |
+| `⌘Z` | Puts back the last item you removed, as many times as needed. |
 
 - **PDFs**: the shortcut cannot see a selection there, and now says so instead of
   claiming there is none. Chrome's viewer draws through PDFium, whose selection
@@ -42,6 +50,9 @@ that does not help you find an object again has no place on screen.
   is empty. The right-click menu works, because Chrome hands it the selected text
   itself; the title and address then come from the tab.
 - **Two sections**: products, and media (saved passages).
+- **Search over everything stored** — title, brand, hostname, price, category and
+  its label, a passage's whole text. Accent-insensitive, and every hit visible on
+  screen is highlighted.
 - **Category filter** and a **total** of whatever is displayed, in the currency of
   your choice — click the total to change it. Prices in other currencies are
   converted at the European Central Bank's daily rate; a `≈` says when any were,
