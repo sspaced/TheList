@@ -26,7 +26,13 @@
       <span class="sep" aria-hidden="true"></span>
       <input class="q" id="q" type="search" autocomplete="off" spellcheck="false" />
       <span class="sep" aria-hidden="true"></span>
-      <span class="total" id="total"></span>
+      <!-- The total IS the currency picker: clicking the number is where you look
+           when you want it in another currency, and it spares the bar a control of
+           its own. Still a plain bold number to the eye — no box. -->
+      <div class="dd" id="cur">
+        <button class="total" id="total" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+        <div class="dd-panel" id="cur-panel" role="listbox" hidden></div>
+      </div>
       <div class="dd right" id="lang">
         <button class="dd-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
           <span id="lang-label"></span><span class="dd-caret" aria-hidden="true">▾</span>

@@ -57,5 +57,6 @@
   "pickHint": "Click a product · Esc to cancel",
   "menuPick": "Pick a product…",
   "cannotRead": "A Chrome-internal page: no extension may read it",
-  "pdfUseMenu": "PDF: select, then right-click"
+  "pdfUseMenu": "PDF: select, then right-click",
+  "currency": "Total currency"
 }

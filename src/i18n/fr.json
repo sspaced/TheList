@@ -57,5 +57,6 @@
   "pickHint": "Clique un produit · Échap pour annuler",
   "menuPick": "Choisir un produit…",
   "cannotRead": "Page interne à Chrome : illisible par une extension",
-  "pdfUseMenu": "PDF : sélectionne, puis clic droit"
+  "pdfUseMenu": "PDF : sélectionne, puis clic droit",
+  "currency": "Devise du total"
 }

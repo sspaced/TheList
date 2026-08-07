@@ -16,6 +16,7 @@ import {
 } from './store.js';
 import { allMedia, putMedia, removeMedia } from './media.js';
 import { CATEGORIES } from './categorize.js';
+import { convert, known, loadRates } from './rates.js';
 import { flip, isMuted, loadMute, setMuted, tick, tock } from './sound.js';
 import { initI18n, lang, LANGS, locale, setLang, t } from './i18n.js';
 
@@ -36,6 +37,7 @@ const sectionBtn = document.getElementById('section-btn');
 const sectionPanel = document.getElementById('section-panel');
 const sectionLabel = document.getElementById('section-label');
 const catsBox = document.getElementById('cats');
+const curPanel = document.getElementById('cur-panel');
 
 let items = [];
 let media = [];
@@ -45,6 +47,11 @@ let filter = null;
 let section = 'all';
 /** Free-text search, applied to the current section. */
 let query = '';
+/** The currency the TOTAL is expressed in. Tiles always keep the price the
+ *  merchant asked — converting that would misreport the shop. */
+let display = 'EUR';
+/** The ECB table, or `null` until it arrives (or if it never does). */
+let rates = null;
 
 /**
  * THE UNDO STACK.
@@ -596,6 +603,7 @@ function paintMute() {
   muteBtn.setAttribute('aria-label', isMuted() ? t('muteOff') : t('muteOn'));
   qInput.placeholder = t('search');
   keysBtn.setAttribute('aria-label', t('shortcuts'));
+  totalEl.setAttribute('aria-label', t('currency'));
 }
 
 muteBtn.onclick = async () => {
@@ -629,6 +637,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#keys')) closeKeys();
   if (!e.target.closest('#lang')) closeLang();
   if (!e.target.closest('#section')) closeSection();
+  if (!e.target.closest('#cur')) closeCurrency();
 });
 document.addEventListener('keydown', async (e) => {
   // ⌘Z on Mac, ⌃Z elsewhere. Ignored while typing: in the search field ⌘Z must
@@ -653,29 +662,62 @@ document.addEventListener('keydown', async (e) => {
   closeKeys();
   closeLang();
   closeSection();
+  closeCurrency();
 });
 
+function amount(n, cur) {
+  try {
+    return new Intl.NumberFormat(locale(), {
+      style: 'currency',
+      currency: cur,
+      maximumFractionDigits: n % 1 ? 2 : 0,
+    }).format(n);
+  } catch {
+    return `${Math.round(n * 100) / 100} ${cur}`;
+  }
+}
+
 /**
- * Total in euros of what is DISPLAYED — so it follows the category filter.
+ * Total of what is DISPLAYED — so it follows the category filter.
  *
- * Only what is actually in euros is summed: a price in dollars, or a price we
- * failed to read, cannot enter a total in euros. And it is not hidden — the
- * number of items left out is shown beside it, otherwise the total would be
- * wrong without saying so.
+ * It used to sum euros and euros only, declaring everything else out. Honest, but
+ * useless: a £9,000 bag beside a €105 pair of trousers gave €105 and a footnote.
+ * Prices in other currencies are now converted, at the ECB's daily rate.
+ *
+ * Two things are still SAID rather than hidden:
+ *   - a `≈` when anything was converted. A converted total is an approximation,
+ *     and one character is enough to say so;
+ *   - the count of what could not enter it at all — a price we failed to read, or
+ *     a currency the table does not carry. A total that hides what it omits is a
+ *     wrong total.
+ *
+ * An item with no currency at all is taken to be in the display currency. That is
+ * what the old code did with euros, and guessing otherwise would be worse.
  */
 function renderTotal(shown) {
-  const counted = shown.filter((i) => i.price != null && (!i.currency || i.currency === 'EUR'));
-  const sum = counted.reduce((n, i) => n + i.price, 0);
-  const out = shown.length - counted.length;
-  totalEl.replaceChildren(
-    document.createTextNode(
-      new Intl.NumberFormat(locale(), {
-        style: 'currency',
-        currency: 'EUR',
-        maximumFractionDigits: sum % 1 ? 2 : 0,
-      }).format(sum),
-    ),
-  );
+  let sum = 0;
+  let out = 0;
+  let converted = 0;
+  for (const i of shown) {
+    if (i.price == null) {
+      out++;
+      continue;
+    }
+    const from = i.currency || display;
+    if (from === display) {
+      sum += i.price;
+      continue;
+    }
+    const v = convert(i.price, from, display, rates);
+    if (v == null) {
+      out++;
+      continue;
+    }
+    sum += v;
+    converted++;
+  }
+
+  totalEl.replaceChildren(document.createTextNode((converted ? '≈ ' : '') + amount(sum, display)));
   if (out > 0) {
     totalEl.append(
       Object.assign(document.createElement('span'), {
@@ -686,11 +728,72 @@ function renderTotal(shown) {
   }
 }
 
+/**
+ * The currencies on offer: the ones actually used by stored items first, since
+ * those are the ones you might want to read the total in, then the majors. The
+ * count beside each is how many items are priced in it — zero for a currency you
+ * merely want to convert TO, which is exactly the point of offering it.
+ *
+ * Nothing the rate table cannot reach is offered, so choosing can never make the
+ * total worse.
+ */
+const MAJORS = ['EUR', 'USD', 'GBP', 'CHF'];
+
+function renderCurrencies() {
+  const counts = new Map();
+  for (const i of items) if (i.price != null) counts.set(i.currency || display, (counts.get(i.currency || display) || 0) + 1);
+  const reachable = new Set(known(rates));
+  const list = [...new Set([...counts.keys(), ...MAJORS])].filter((c) => c === display || !rates || reachable.has(c));
+
+  curPanel.replaceChildren(
+    ...list.map((c) => {
+      const b = document.createElement('button');
+      b.className = 'dd-opt';
+      b.type = 'button';
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', String(c === display));
+      b.append(Object.assign(document.createElement('span'), { textContent: c }));
+      b.append(
+        Object.assign(document.createElement('span'), {
+          className: 'dd-n',
+          textContent: String(counts.get(c) || 0),
+        }),
+      );
+      b.onclick = async () => {
+        tick();
+        display = c;
+        closeCurrency();
+        try {
+          await chrome.storage.local.set({ display });
+        } catch {}
+        render();
+      };
+      return b;
+    }),
+  );
+}
+
+function closeCurrency() {
+  curPanel.hidden = true;
+  totalEl.setAttribute('aria-expanded', 'false');
+}
+
+totalEl.onclick = () => {
+  if (totalEl.disabled) return;
+  tick();
+  const open = curPanel.hidden;
+  curPanel.hidden = !open;
+  totalEl.setAttribute('aria-expanded', String(open));
+};
+
 function render() {
+  // A count, not an amount: nothing to convert, so the picker is inert.
+  totalEl.disabled = section === 'media';
+  if (totalEl.disabled) closeCurrency();
   if (section === 'media') {
     const shown = contentOf('media');
     grid.replaceChildren(...shown.map(mediaTile));
-    // No euro total on passages: we count items.
+    // No total on passages: we count items.
     totalEl.textContent = String(shown.length);
   } else if (section === 'all') {
     const shown = contentOf('all');
@@ -705,6 +808,7 @@ function render() {
     renderTotal(shown);
   }
   renderSection();
+  renderCurrencies();
   // After the paint: `scrollWidth` is meaningless before the browser has laid the
   // text out.
   requestAnimationFrame(markTooltips);
@@ -752,6 +856,11 @@ renderLang();
 // Three maintenance passes, all idempotent, and the order matters: items have to
 // be brought back from `sync` before their categories can be corrected, and the
 // French labels have to become keys before the lexicon is re-run over them.
+// The chosen currency, before the first paint: switching it afterwards would
+// redraw the whole bar for nothing.
+try {
+  ({ display } = await chrome.storage.local.get({ display: 'EUR' }));
+} catch {}
 await migrateFromSync();
 await migrateLegacyCategories();
 const recategorised = await recategorizeIfStale();
@@ -761,3 +870,17 @@ if (recategorised.length) {
   console.info(`[TheList] ${recategorised.length} item(s) re-categorised`, recategorised);
 }
 await refresh();
+
+/**
+ * Rates come AFTER the first paint, deliberately.
+ *
+ * Awaiting a network call before showing anything would hold the grid hostage to a
+ * third party — and on a bad connection the list would simply not appear at all. So
+ * the total renders with what it can add up and re-renders once the table lands.
+ * Without a table, the behaviour is exactly the old one.
+ */
+loadRates(Date.now()).then((table) => {
+  if (!table) return;
+  rates = table;
+  render();
+});

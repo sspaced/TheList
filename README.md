@@ -42,7 +42,10 @@ that does not help you find an object again has no place on screen.
   is empty. The right-click menu works, because Chrome hands it the selected text
   itself; the title and address then come from the tab.
 - **Two sections**: products, and media (saved passages).
-- **Category filter** and **total in euros** of whatever is displayed.
+- **Category filter** and a **total** of whatever is displayed, in the currency of
+  your choice — click the total to change it. Prices in other currencies are
+  converted at the European Central Bank's daily rate; a `≈` says when any were,
+  and whatever could not enter the total is counted beside it.
 - **Categorisation** by a model through OpenRouter when a key is configured,
   otherwise by a bilingual keyword lexicon. A failure never blocks the save. The
   lexicon carries a revision: when it is fixed, already-stored items are
@@ -62,9 +65,13 @@ to classify. What we give up is stated plainly: **the list no longer syncs betwe
 several Chrome installs**. What we gain is room — descriptions are kept and
 searchable, and both kinds share one store.
 
-Nothing is sent anywhere, with one exception: when an OpenRouter key is
-configured, the product's title and brand go to the model to be classified.
-Without a key the extension runs entirely offline.
+Nothing is sent anywhere, with two exceptions. When an OpenRouter key is
+configured, the product's title and brand go to the model to be classified. And
+once every twelve hours the list asks frankfurter.dev for the ECB's rate table —
+a request that carries no data about you, not even which currencies you hold, and
+whose answer is the same for everyone. A failure there is never fatal: the last
+cached table is used, and with none the total behaves as it did before, summing
+one currency and declaring the rest out.
 
 ## Install
 
@@ -91,6 +98,7 @@ src/
   background.js   service worker: saving, menus, shortcuts
   extract.js      reading a product page (injected on demand)
   pick.js         pointing at one product in a grid (injected on demand)
+  rates.js        ECB exchange rates, cached, for the total
   categorize.js   closed taxonomy, model with a keyword fallback
   store.js        products (storage.local)
   media.js        passages (storage.local)
