@@ -84,7 +84,7 @@ const FALLBACK = 'other';
  * « running shoe » serait rangé en sport et « laptop bag » en mode.
  */
 const KEYWORDS = [
-  ['shoes', /chaussure|sneaker|basket|boot|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe/i],
+  ['shoes', /chaussure|sneaker|basket|boot|bottin|botte|sandale|sandal|mocassin|loafer|escarpin|heels?|trainers?|running shoe|air max|air force|air jordan|espadrille|derby|richelieu/i],
   ['jewellery', /montre|watch|bijou|jewel|collier|necklace|bracelet|bague|ring\b|boucle d.oreille|earring/i],
   ['beauty', /parfum|perfume|fragrance|creme|crème|cream|serum|sérum|maquillage|makeup|rouge à lèvres|lipstick|shampoing|shampoo|skincare|cosmeti/i],
   ['computing', /laptop|macbook|ordinateur|pc portable|clavier|keyboard|souris|mouse\b|ssd|disque dur|hard drive|ram |écran \d|monitor|imprimante|printer/i],
@@ -92,6 +92,7 @@ const KEYWORDS = [
   ['photo', /appareil photo|objectif|lens\b|caméra|camera|gopro|trépied|tripod|drone/i],
   ['electronics', /iphone|smartphone|téléphone|phone\b|tablette|tablet|ipad|tv |télévision|television|console|playstation|xbox|nintendo|montre connectée|smartwatch/i],
   ['kitchen', /poêle|casserole|pan\b|pot\b|couteau de cuisine|kitchen knife|robot cuiseur|mixeur|blender|cafetière|coffee maker|expresso|espresso|vaisselle|assiette|plate\b|verre à|mug\b/i],
+  ['home', /lampe de table|table lamp|lampe|luminaire|applique/i],
   ['furniture', /canapé|sofa|couch|fauteuil|armchair|table |desk\b|chaise|chair\b|bureau |étagère|shelf|shelving|lit |bed\b|matelas|mattress|commode|dresser|armoire|wardrobe/i],
   ['home', /coussin|cushion|rideau|curtain|tapis|rug\b|lampe|lamp\b|luminaire|linge de lit|bedding|couette|duvet cover|décoration|candle|bougie|aspirateur|vacuum/i],
   ['games', /jeu de société|board game|lego|puzzle|figurine|jouet|toy\b|jeu vidéo|video game|manette|controller/i],
