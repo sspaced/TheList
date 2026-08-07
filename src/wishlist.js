@@ -36,7 +36,7 @@ let media = [];
 /** Catégorie affichée, `null` = toutes. */
 let filter = null;
 /** Section affichée : les produits, ou ce qu'on garde pour lire. */
-let section = 'products';
+let section = 'all';
 /** Recherche libre, appliquée à la section courante. */
 let query = '';
 
@@ -387,9 +387,18 @@ langBtn.onclick = () => {
  * proposer un choix sans effet.
  */
 const SECTIONS = [
+  { key: 'all', label: () => t('all') },
   { key: 'products', label: () => t('sectionProducts') },
   { key: 'media', label: () => t('sectionMedia') },
 ];
+
+/** Ce que porte une section, déjà filtré par la recherche. Le tri est celui de
+ *  la date : mêlés, produits et passages se lisent dans l'ordre où ils sont
+ *  arrivés, pas en deux paquets. */
+function contentOf(key) {
+  const list = key === 'products' ? items : key === 'media' ? media : [...items, ...media];
+  return list.filter(matches).sort((a, b) => b.ts - a.ts);
+}
 
 function renderSection() {
   sectionLabel.textContent = SECTIONS.find((x) => x.key === section).label();
@@ -406,8 +415,8 @@ function renderSection() {
         Object.assign(document.createElement('span'), {
           className: 'dd-n',
           // Le compteur suit la recherche : c'est ainsi qu'on voit qu'il y a des
-          // résultats dans l'AUTRE section sans avoir à y basculer pour vérifier.
-          textContent: String((x.key === 'products' ? items : media).filter(matches).length),
+          // résultats dans une AUTRE section sans avoir à y basculer.
+          textContent: String(contentOf(x.key).length),
         }),
       );
       b.onclick = () => {
@@ -529,12 +538,18 @@ function renderTotal(shown) {
 
 function render() {
   if (section === 'media') {
-    const shown = media.filter(matches);
+    const shown = contentOf('media');
     grid.replaceChildren(...shown.map(mediaTile));
     // Pas de total en euros sur des passages : on compte des éléments.
     totalEl.textContent = String(shown.length);
+  } else if (section === 'all') {
+    const shown = contentOf('all');
+    grid.replaceChildren(...shown.map((o) => (o.kind === 'quote' ? mediaTile(o) : tile(o))));
+    // Le total en euros reste juste : `renderTotal` compte à part ce qui n'a pas
+    // de prix, et un passage n'en a pas — il apparaît donc en « hors total ».
+    renderTotal(shown);
   } else {
-    const shown = items.filter((i) => (!filter || i.category === filter) && matches(i));
+    const shown = contentOf('products').filter((i) => !filter || i.category === filter);
     grid.replaceChildren(...shown.map(tile));
     renderDropdown();
     renderTotal(shown);

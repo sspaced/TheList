@@ -38,9 +38,26 @@ async function openWishlist() {
 }
 
 // Le clic = l'ajout. C'est le seul geste : pas de popup intermédiaire.
+/**
+ * LE GESTE DÉPEND DE CE QUI EST SÉLECTIONNÉ.
+ *
+ * Un même raccourci pour deux intentions, et c'est la page qui tranche : du
+ * texte surligné veut dire « garde ce passage », rien de surligné veut dire
+ * « garde ce produit ». On n'a donc qu'une combinaison à retenir, et le cas où
+ * l'on se trompe n'existe pas — on ne surligne pas un paragraphe par accident.
+ *
+ * `⌥⇧S` reste : quand on veut le passage sans ambiguïté, ou quand la sélection
+ * risque de sauter.
+ */
 async function addFromTab(tab) {
   const tabId = tab?.id;
   if (!tabId || !/^https?:/i.test(tab.url || '')) return badge(tabId, '×', '#cc0000');
+
+  // On garde la lecture : `saveQuote` en a besoin pour le titre et l'URL, et la
+  // refaire serait une seconde injection dans la page pour rien.
+  const page = await readSelection(tabId);
+  const selected = page?.text?.trim();
+  if (selected) return saveQuote(tab, selected, page);
 
   let product = null;
   try {
@@ -139,12 +156,12 @@ async function readSelection(tabId) {
   }
 }
 
-async function saveQuote(tab, selectionText) {
+async function saveQuote(tab, selectionText, known) {
   const tabId = tab?.id;
   if (!tabId) return;
   await ready();
 
-  const page = await readSelection(tabId);
+  const page = known ?? (await readSelection(tabId));
   // Le texte du menu contextuel fait foi : Chrome le fournit tel que
   // l'utilisateur l'a surligné, alors que relire la sélection depuis la page
   // peut arriver après qu'un clic l'a effacée.
