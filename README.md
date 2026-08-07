@@ -27,9 +27,9 @@ n'aide pas à retrouver un objet n'a pas sa place à l'écran.
 
 | | |
 |---|---|
-| `⌥⇧A` | Ajoute le produit de la page. Sur une page **panier**, ajoute tous les articles — sans les « recommandations pour vous ». |
-| `⌥⇧S` | Enregistre le texte sélectionné, avec sa source. Aussi par clic droit. |
-| `⌥⇧W` | Ouvre la liste. |
+| `⌥A` | Ajoute le produit de la page. Sur une page **panier**, ajoute tous les articles — sans les « recommandations pour vous ». |
+| `⌥S` | Enregistre le texte sélectionné, avec sa source. Aussi par clic droit. |
+| `⌥L` | Ouvre la liste. |
 
 - **Deux sections** : les produits, et les médias (passages enregistrés).
 - **Filtre par catégorie** et **total en euros** de ce qui est affiché.

@@ -34,18 +34,18 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Alt+Shift+A"
+        "default": "Alt+A"
       }
     },
     "open-wishlist": {
       "suggested_key": {
-        "default": "Alt+Shift+W"
+        "default": "Alt+L"
       },
-      "description": "Ouvrir la wishlist"
+      "description": "Ouvrir TheList"
     },
     "save-quote": {
       "suggested_key": {
-        "default": "Alt+Shift+S"
+        "default": "Alt+S"
       },
       "description": "Enregistrer la sélection"
     }
