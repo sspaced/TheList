@@ -50,5 +50,6 @@
   "toastNoSelection": "No text selected",
   "sectionProducts": "PRODUCTS",
   "sectionMedia": "MEDIA",
-  "removeMedia": "Remove from media"
+  "removeMedia": "Remove from media",
+  "search": "SEARCH"
 }

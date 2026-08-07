@@ -82,6 +82,34 @@ body {
   flex: none;
 }
 
+/* Le champ de recherche : même vocabulaire que les boutons — trait noir de 1 px,
+   angles vifs, monospace. Largeur fixe : en `flex: 1` il repousserait le total
+   contre les boutons de droite et la bande respirerait moins bien. */
+.q {
+  width: 220px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  /* Chrome dessine sa propre croix d'effacement, ronde et grise : elle jure. */
+  appearance: none;
+}
+
+.q::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.q::placeholder {
+  color: #999;
+}
+
+.q:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px #000;
+}
+
 .total {
   font-weight: 700;
 }
@@ -210,8 +238,17 @@ body {
      tient sa hauteur d'un `aspect-ratio`, sans hauteur explicite à laquelle un
      pourcentage puisse se référer. Le texte débordait donc au lieu de défiler. */
   position: absolute;
-  inset: 0;
-  padding: 12px;
+  /* Le cadre du texte commence SOUS la croix : elle occupe 22 px à 4 px du bord,
+     donc son bas est à 26 px, et on laisse 4 px d'air. C'est le conteneur qui
+     descend, pas seulement le texte — ainsi la barre de défilement, qui longe son
+     bord, ne passe plus derrière le bouton. 29 et non 30 : la croix est
+     positionnée sur la TUILE, la citation à l'intérieur du cadre, dont la
+     bordure de 1 px décale tout ce qu'il contient. */
+  top: 29px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0 12px 12px;
   /* Le passage DÉFILE dans la tuile plutôt que d'être tronqué : on enregistre un
      texte pour le relire, pas pour en voir les douze premières lignes. La barre
      est fine et discrète — c'est du texte, pas un panneau. */

@@ -19,6 +19,7 @@ const ddPanel = document.getElementById('cats-panel');
 const ddLabel = document.getElementById('cats-label');
 const totalEl = document.getElementById('total');
 const muteBtn = document.getElementById('mute');
+const qInput = document.getElementById('q');
 const keysBtn = document.getElementById('keys-btn');
 const keysPanel = document.getElementById('keys-panel');
 const langBtn = document.getElementById('lang-btn');
@@ -36,6 +37,44 @@ let media = [];
 let filter = null;
 /** Section affichée : les produits, ou ce qu'on garde pour lire. */
 let section = 'products';
+/** Recherche libre, appliquée à la section courante. */
+let query = '';
+
+/**
+ * LA RECHERCHE PORTE SUR TOUT CE QUI EST ENREGISTRÉ.
+ *
+ * Un produit se cherche par son titre, sa marque, son domaine, son prix ou sa
+ * catégorie — et par le LIBELLÉ de celle-ci autant que par sa clé, sinon taper
+ * « meuble » ne trouverait rien alors que la tuile l'affiche. Un passage se
+ * cherche par son texte, son titre et son domaine.
+ *
+ * Accents et casse sont neutralisés des deux côtés : chercher « electronique »
+ * doit trouver « Électronique ».
+ */
+const fold = (v) =>
+  (v ?? '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+function haystack(o) {
+  return o.kind === 'quote'
+    ? fold([o.text, o.title, o.site].join(' '))
+    : fold([o.title, o.brand, o.site, o.category, t(`cat.${o.category}`), o.price, o.currency].join(' '));
+}
+
+function matches(o) {
+  if (!query) return true;
+  const hay = haystack(o);
+  // Tous les mots doivent être présents, dans n'importe quel ordre : « chaise
+  // amazon » trouve la chaise sur Amazon, pas tout ce qui contient l'un OU
+  // l'autre.
+  return fold(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => hay.includes(w));
+}
 
 function money(item) {
   if (item.price == null) return t('noPrice');
@@ -337,7 +376,9 @@ function renderSection() {
       b.append(
         Object.assign(document.createElement('span'), {
           className: 'dd-n',
-          textContent: String(x.key === 'products' ? items.length : media.length),
+          // Le compteur suit la recherche : c'est ainsi qu'on voit qu'il y a des
+          // résultats dans l'AUTRE section sans avoir à y basculer pour vérifier.
+          textContent: String((x.key === 'products' ? items : media).filter(matches).length),
         }),
       );
       b.onclick = () => {
@@ -366,6 +407,7 @@ sectionBtn.onclick = () => {
 function paintMute() {
   muteBtn.setAttribute('aria-pressed', String(isMuted()));
   muteBtn.title = isMuted() ? t('muteOff') : t('muteOn');
+  qInput.placeholder = t('search');
   keysBtn.title = t('shortcuts');
 }
 
@@ -442,11 +484,12 @@ function renderTotal(shown) {
 
 function render() {
   if (section === 'media') {
-    grid.replaceChildren(...media.map(mediaTile));
+    const shown = media.filter(matches);
+    grid.replaceChildren(...shown.map(mediaTile));
     // Pas de total en euros sur des passages : on compte des éléments.
-    totalEl.textContent = String(media.length);
+    totalEl.textContent = String(shown.length);
   } else {
-    const shown = filter ? items.filter((i) => i.category === filter) : items;
+    const shown = items.filter((i) => (!filter || i.category === filter) && matches(i));
     grid.replaceChildren(...shown.map(tile));
     renderDropdown();
     renderTotal(shown);
@@ -490,6 +533,20 @@ function fadingScrollbar(el, delay = 700) {
   );
 }
 fadingScrollbar(grid);
+
+qInput.oninput = () => {
+  query = qInput.value;
+  render();
+};
+// Échap vide le champ : sortir d'une recherche ne doit pas demander de
+// sélectionner le texte pour l'effacer.
+qInput.onkeydown = (e) => {
+  if (e.key !== 'Escape' || !qInput.value) return;
+  e.stopPropagation();
+  qInput.value = '';
+  query = '';
+  render();
+};
 
 await initI18n();
 await loadMute();
