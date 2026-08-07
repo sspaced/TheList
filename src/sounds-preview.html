@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>TheList — sons</title>
+    <link rel="stylesheet" href="wishlist.css" />
+    <style>
+      /* Page d'atelier, hors du produit : elle n'a pas à en suivre la contrainte
+         « quatre images par ligne ». */
+      body {
+        padding: 12px;
+        max-width: 640px;
+      }
+      h1 {
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0 0 12px;
+        color: #777;
+      }
+      .row {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        border: 1px solid #000;
+        padding: 6px 8px;
+        margin-bottom: 4px;
+      }
+      .row button {
+        border: 1px solid #000;
+        background: #fff;
+        font: inherit;
+        padding: 2px 8px;
+        cursor: pointer;
+        flex: none;
+      }
+      .row button:hover {
+        background: #000;
+        color: #fff;
+      }
+      .name {
+        font-weight: 700;
+        min-width: 96px;
+      }
+      .used {
+        color: #000;
+      }
+      .desc {
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SONS DISPONIBLES</h1>
+    <p>
+      Écoute, puis dis-moi lesquels affecter à quoi. Ce qui est en gras est ce qui
+      est branché aujourd'hui.
+    </p>
+    <div id="list"></div>
+    <script type="module">
+      import { sounds, play, setEnabled, setVolume } from './vendor/cuelume/index.js';
+
+      // La page d'audition ignore le réglage « muet » du produit : on vient ici
+      // précisément pour entendre.
+      setEnabled(true);
+      setVolume(0.9);
+
+      /** Ce qui est câblé aujourd'hui, pour situer les candidats. */
+      const USED = {
+        tick: 'sélection dans le menu',
+        press: 'retirer un article (croix)',
+        toggle: 'interrupteur de son',
+      };
+
+      const list = document.getElementById('list');
+      for (const name of sounds) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = '▶';
+        b.onclick = () => play(name);
+        const n = document.createElement('span');
+        n.className = 'name' + (USED[name] ? ' used' : '');
+        n.textContent = name;
+        if (USED[name]) n.style.textDecoration = 'underline';
+        const d = document.createElement('span');
+        d.className = 'desc';
+        d.textContent = USED[name] ? `← ${USED[name]}` : '';
+        row.append(b, n, d);
+        list.append(row);
+      }
+    </script>
+  </body>
+</html>

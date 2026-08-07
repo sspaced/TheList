@@ -1,0 +1,445 @@
+/* Une grille d'images avec leur prix, et rien d'autre. Tout ce qui n'est pas le
+   produit a été retiré : barre, recherche, tri, catégories, réglages, bouton de
+   suppression. Ce qui reviendra reviendra à la demande. */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Une seule définition de barre pour toute la page : 3 px, pouce noir, piste
+   transparente. On n'utilise PAS `scrollbar-width` : dès qu'elle est déclarée,
+   Chrome ignore les pseudo-éléments `::-webkit-scrollbar` et on perd le contrôle
+   de la largeur exacte. */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Invisible au repos. Une barre stylée en `::-webkit-scrollbar` est peinte en
+   permanence, contrairement aux barres système qui s'effacent : on rend donc le
+   pouce transparent par défaut et une classe posée en JavaScript le fait
+   apparaître le temps du défilement. */
+::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.scrolling::-webkit-scrollbar-thumb,
+.quote:hover::-webkit-scrollbar-thumb {
+  background: #000;
+}
+
+html,
+body {
+  margin: 0;
+  background: #fff;
+  font: 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #000;
+}
+
+body {
+  /* 40 px de barre + 4 px d'air avant la première rangée d'images. */
+  padding: 44px 4px 4px;
+  /* La page elle-même ne défile PAS : c'est la grille qui défile, à l'intérieur.
+     Sinon la barre s'accroche au bord de la fenêtre, par-dessus les tuiles et
+     hors du cadre de 4 px. Ici elle longe le bord droit de la grille. */
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Bandeau collé au bord haut et aux deux bords latéraux : `fixed` avec
+   `left/right: 0` l'affranchit du padding du body, sinon il resterait 4 px en
+   retrait des côtés. */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* `box-sizing: border-box` : les 40 px incluent les bordures, la barre occupe
+     donc exactement 40 px et le padding du body n'a pas à s'y ajuster. */
+  height: 40px;
+  background: #fff;
+  border: 1px solid #000;
+  border-left: 0;
+  border-right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+/* Séparateur : un filet de 1 px qui NE touche ni le haut ni le bas de la bande.
+   Hauteur fixe et centrage par le flex parent — 20 px dans une bande de 40 px,
+   donc 10 px d'air de chaque côté. */
+.sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 10px;
+  background: #000;
+  flex: none;
+}
+
+.total {
+  font-weight: 700;
+}
+
+/* Ce qui n'entre pas dans le total le dit, en retrait. Un total qui tait ce
+   qu'il omet est un total faux. */
+.total .out {
+  font-weight: 400;
+  color: #777;
+}
+
+/* `margin-left: auto` le pousse à l'extrémité droite de la bande, quelle que
+   soit la largeur du total. Coupé, la note est barrée — pas grisée : le gris
+   dirait « indisponible », or le bouton reste actionnable. */
+/* Le bloc des raccourcis est poussé à droite ; le bouton muet le suit, collé
+   au bord. `margin-left: auto` ne s'applique donc qu'au PREMIER des deux. */
+.dd.right {
+  margin-left: auto;
+}
+
+/* Deux blocs poussés à droite : seul le PREMIER prend `margin-left: auto`,
+   sinon le second s'écarterait du premier jusqu'à l'autre bout. Sélecteur plus
+   spécifique, et placé après — à spécificité égale, c'est la dernière règle qui
+   gagne, et j'ai déjà perdu une bordure sur cet oubli. */
+.dd.right + .dd.right {
+  margin-left: 4px;
+}
+
+.dd.right + .mute,
+.dd.right + .dd.right + .mute {
+  margin-left: 4px;
+}
+
+/* Un panneau ancré à droite déborderait de la fenêtre s'il s'ouvrait vers la
+   droite : il s'aligne donc sur le bord droit de son bouton. */
+.dd.right .dd-panel {
+  left: auto;
+  right: 0;
+}
+
+.dd-panel.wide {
+  min-width: 300px;
+}
+
+.keys-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 8px;
+}
+
+.keys-row + .keys-row {
+  border-top: 1px solid #e6e6e6;
+}
+
+/* Le raccourci lui-même : encadré, comme une touche. */
+.keys-combo {
+  border: 1px solid #000;
+  padding: 1px 5px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.keys-combo.none {
+  border-color: #bbb;
+  color: #999;
+}
+
+/* Trait noir plein au-dessus : les lignes du dessus sont de l'INFORMATION,
+   celle-ci est une ACTION. Les filets gris clair qui séparent les raccourcis ne
+   suffisaient pas à marquer ce changement de nature.
+   DEUX classes dans le sélecteur, et ce n'est pas décoratif : `.dd-opt` remet
+   `border: 0` plus bas dans cette feuille, et à spécificité égale c'est la
+   dernière règle qui gagne — la bordure était effacée aussitôt posée. */
+.dd-opt.keys-edit {
+  border-top: 1px solid #000;
+}
+
+.mute {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mute:hover {
+  background: #000;
+  color: #fff;
+}
+
+.mute[aria-pressed='true'] {
+  text-decoration: line-through;
+}
+
+/* ---------- Menu déroulant maison ----------
+   Même vocabulaire que les tuiles : trait noir de 1 px, fond blanc, angles
+   vifs, monospace. Le survol INVERSE (noir sur blanc → blanc sur noir) plutôt
+   que de teinter : c'est le seul geste graphique de la page, il doit rester net. */
+.dd {
+  position: relative;
+}
+
+/* Un peu d'air entre le sélecteur de section et le filtre de catégories : ils
+   se lisent de gauche à droite, du plus général au plus précis. */
+#section + .dd {
+  margin-left: 4px;
+}
+
+/* ---------- Tuile « passage » ----------
+   Une citation n'a pas d'image : c'est le texte qui occupe le carré. Il est
+   tronqué proprement plutôt que rogné, et la ligne du bas garde la même forme
+   que celle d'un produit — le domaine à gauche, la date à droite. */
+.quote {
+  /* Calé sur les quatre bords du cadre plutôt qu'en `height: 100%` : la tuile
+     tient sa hauteur d'un `aspect-ratio`, sans hauteur explicite à laquelle un
+     pourcentage puisse se référer. Le texte débordait donc au lieu de défiler. */
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  /* Le passage DÉFILE dans la tuile plutôt que d'être tronqué : on enregistre un
+     texte pour le relire, pas pour en voir les douze premières lignes. La barre
+     est fine et discrète — c'est du texte, pas un panneau. */
+  overflow-y: auto;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+  /* Les sauts de ligne du document d'origine comptent : `pre-wrap` les respecte
+     tout en laissant les lignes trop longues se replier. Sans lui, dix
+     paragraphes s'affichaient en un seul pavé. */
+  white-space: pre-wrap;
+}
+
+.quote::before {
+  content: '« ';
+}
+
+.quote::after {
+  content: ' »';
+}
+
+.dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dd-btn:hover,
+.dd-btn[aria-expanded='true'] {
+  background: #000;
+  color: #fff;
+}
+
+.dd-caret {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* Le panneau chevauche la grille : il est au-dessus (z-index) et sort du flux,
+   sinon l'ouverture pousserait toutes les images vers le bas. */
+.dd-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid #000;
+  background: #fff;
+  z-index: 20;
+}
+
+.dd-opt {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dd-opt:hover,
+.dd-opt:focus-visible {
+  background: #000;
+  color: #fff;
+  outline: none;
+}
+
+/* La sélection courante se marque par un trait à gauche, pas par une couleur :
+   la page n'en a aucune. */
+.dd-opt[aria-selected='true'] {
+  box-shadow: inset 3px 0 0 #000;
+  font-weight: 700;
+}
+
+.dd-opt[aria-selected='true']:hover {
+  box-shadow: inset 3px 0 0 #fff;
+}
+
+.dd-n {
+  color: #777;
+}
+
+.dd-opt:hover .dd-n,
+.dd-opt:focus-visible .dd-n {
+  color: #bbb;
+}
+
+.grid {
+  display: grid;
+  /* `minmax(0, 1fr)` et non `1fr` : `1fr` vaut `minmax(auto, 1fr)`, donc un
+     contenu insécable — ici un titre de document en `nowrap` — impose sa largeur
+     intrinsèque et fait déborder sa colonne. Les tuiles cessaient d'être carrées
+     et le texte, ayant la place de s'étaler, ne défilait plus. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  height: 100%;
+  overflow-y: auto;
+  /* La marge négative annule le padding du body à droite : la barre se colle au
+     bord de la fenêtre, tandis que le `padding-right` rend aux tuiles les 4 px
+     qu'elles avaient. */
+  margin-right: -4px;
+  padding-right: 4px;
+  /* La grille se remplit par le haut : sans ça, une seule rangée s'étirerait sur
+     toute la hauteur disponible. */
+  align-content: start;
+}
+
+.cell {
+  position: relative;
+}
+
+/* La vignette EST le lien : cliquer l'image ouvre la fiche produit. */
+.link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* La croix se pose SUR l'image, à 4 px de ses bords. Fond blanc opaque : sans
+   lui elle se perdrait dans une photo claire. */
+.del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Même inversion que les autres boutons de la page : c'est le seul geste
+   graphique du thème, il doit être le même partout. */
+.del:hover {
+  background: #000;
+  color: #fff;
+}
+
+.shot {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #f2f2f2;
+  border: 1px solid #000;
+}
+
+.shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* L'URL fautive, à même la tuile : un échec doit se lire, pas se deviner. */
+.broken {
+  padding: 8px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #b00;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Un média porte une ligne de plus que le produit : le titre du document. Sans
+   lui, un passage sorti de son article n'a plus de nom — le domaine seul ne dit
+   pas de QUOI il s'agit. */
+/* Une seule ligne, comme pour un produit : le domaine à gauche, le titre du
+   document à droite. C'est le titre qui cède quand la place manque — le domaine
+   est court et sert de repère. */
+.mtitle {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.info {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  /* Pas de bordure haute : celle du bas de l'image sert d'arête commune, sinon
+     les deux se cumulent et le trait fait 2 px au milieu de la tuile. */
+  border: 1px solid #000;
+  border-top: 0;
+  padding: 8px;
+}
+
+/* Le nom de domaine peut être long (« boutique.machin-truc.co.uk ») : c'est lui
+   qui cède, jamais le prix — on vient là pour le montant. */
+.site {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #777;
+}
+
+.price {
+  white-space: nowrap;
+}
+
+/* Le prix descend souvent d'une lecture de page approximative : quand il
+   manque, la boîte reste (la grille ne doit pas se désaligner) et le dit. */
+.price.none {
+  color: #999;
+}

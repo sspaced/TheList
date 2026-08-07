@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "TheList",
+  "version": "1.0.0",
+  "description": "Garde ce que tu veux acheter et ce que tu veux relire : un produit, un panier entier, un passage de texte — en un raccourci, depuis n'importe quel site.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://openrouter.ai/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Ajouter à TheList",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      }
+    },
+    "open-wishlist": {
+      "suggested_key": {
+        "default": "Alt+Shift+W"
+      },
+      "description": "Ouvrir la wishlist"
+    },
+    "save-quote": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Enregistrer la sélection"
+    }
+  }
+}
